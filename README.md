@@ -4,7 +4,7 @@ A reproducible enquiry into when sequential representation learning helps for me
 
 *Synthetic EHR, controlled temporal tasks, honest comparison on modest hardware.*
 
-**Live site (GitHub Pages):** `https://YOUR_USERNAME.github.io/clinical-transformer-lab/` (see `docs/index.html`)
+**Live site (GitHub Pages):** `https://Santhust.github.io/clinical-transformer-lab/` (see `docs/index.html`)
 **Interactive demo:** `streamlit run app.py` (local)
 
 ## Abstract
