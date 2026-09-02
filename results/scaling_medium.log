@@ -1,0 +1,69 @@
+
+=== Medium model n=1000 ===
+ prevalence 0.139
+ Classical LogReg 0.861/0.550  RF 0.838/0.443
+  Epoch 1/12: AUROC 0.739  AUPRC 0.270
+  Epoch 2/12: AUROC 0.787  AUPRC 0.301
+  Epoch 3/12: AUROC 0.793  AUPRC 0.321
+  Epoch 4/12: AUROC 0.795  AUPRC 0.328
+  Epoch 5/12: AUROC 0.773  AUPRC 0.329
+  Epoch 6/12: AUROC 0.795  AUPRC 0.329
+  Epoch 7/12: AUROC 0.789  AUPRC 0.344
+  Epoch 8/12: AUROC 0.779  AUPRC 0.356
+  Epoch 9/12: AUROC 0.804  AUPRC 0.383
+  Epoch 10/12: AUROC 0.797  AUPRC 0.385
+  Epoch 11/12: AUROC 0.808  AUPRC 0.429
+  Epoch 12/12: AUROC 0.808  AUPRC 0.425
+ => Transformer medium 0.808/0.429
+
+=== Medium model n=3000 ===
+ prevalence 0.122
+ Classical LogReg 0.849/0.474  RF 0.811/0.397
+  Epoch 1/12: AUROC 0.770  AUPRC 0.329
+  Epoch 2/12: AUROC 0.802  AUPRC 0.351
+  Epoch 3/12: AUROC 0.808  AUPRC 0.368
+  Epoch 4/12: AUROC 0.823  AUPRC 0.364
+  Epoch 5/12: AUROC 0.819  AUPRC 0.411
+  Epoch 6/12: AUROC 0.822  AUPRC 0.403
+  Epoch 7/12: AUROC 0.826  AUPRC 0.393
+  Epoch 8/12: AUROC 0.827  AUPRC 0.428
+  Epoch 9/12: AUROC 0.825  AUPRC 0.426
+  Epoch 10/12: AUROC 0.816  AUPRC 0.368
+  Epoch 11/12: AUROC 0.818  AUPRC 0.398
+  Epoch 12/12: AUROC 0.805  AUPRC 0.399
+ => Transformer medium 0.827/0.428
+
+=== Medium model n=10000 ===
+ prevalence 0.124
+ Classical LogReg 0.860/0.489  RF 0.837/0.432
+  Epoch 1/12: AUROC 0.829  AUPRC 0.391
+  Epoch 2/12: AUROC 0.839  AUPRC 0.429
+  Epoch 3/12: AUROC 0.837  AUPRC 0.421
+  Epoch 4/12: AUROC 0.847  AUPRC 0.452
+  Epoch 5/12: AUROC 0.850  AUPRC 0.462
+  Epoch 6/12: AUROC 0.849  AUPRC 0.457
+  Epoch 7/12: AUROC 0.844  AUPRC 0.444
+  Epoch 8/12: AUROC 0.852  AUPRC 0.470
+  Epoch 9/12: AUROC 0.847  AUPRC 0.473
+  Epoch 10/12: AUROC 0.848  AUPRC 0.457
+  Epoch 11/12: AUROC 0.849  AUPRC 0.466
+  Epoch 12/12: AUROC 0.847  AUPRC 0.451
+ => Transformer medium 0.852/0.470
+
+=== Medium model n=20000 ===
+ prevalence 0.127
+ Classical LogReg 0.847/0.467  RF 0.828/0.421
+  Epoch 1/12: AUROC 0.810  AUPRC 0.375
+  Epoch 2/12: AUROC 0.824  AUPRC 0.404
+  Epoch 3/12: AUROC 0.819  AUPRC 0.390
+  Epoch 4/12: AUROC 0.834  AUPRC 0.424
+  Epoch 5/12: AUROC 0.840  AUPRC 0.424
+  Epoch 6/12: AUROC 0.848  AUPRC 0.437
+  Epoch 7/12: AUROC 0.850  AUPRC 0.442
+  Epoch 8/12: AUROC 0.847  AUPRC 0.445
+  Epoch 9/12: AUROC 0.842  AUPRC 0.432
+  Epoch 10/12: AUROC 0.852  AUPRC 0.444
+  Epoch 11/12: AUROC 0.849  AUPRC 0.441
+  Epoch 12/12: AUROC 0.848  AUPRC 0.440
+ => Transformer medium 0.852/0.444
+Saved plots/scaling_medium.png

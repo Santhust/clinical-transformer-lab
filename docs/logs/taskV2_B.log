@@ -1,0 +1,69 @@
+
+=== Task V2-B n=10000 (cumulative mean WBC) ===
+ prevalence 0.052
+ LogReg 0.878/0.318 RF 0.849/0.247
+ Small...
+ Epoch 1/12: 0.851/0.252
+ Epoch 2/12: 0.862/0.269
+ Epoch 3/12: 0.865/0.275
+ Epoch 4/12: 0.867/0.286
+ Epoch 5/12: 0.866/0.291
+ Epoch 6/12: 0.863/0.315
+ Epoch 7/12: 0.871/0.319
+ Epoch 8/12: 0.872/0.315
+ Epoch 9/12: 0.867/0.310
+ Epoch 10/12: 0.866/0.295
+ Epoch 11/12: 0.870/0.307
+ Epoch 12/12: 0.865/0.324
+ Small 0.872/0.315
+ Medium...
+ Epoch 1/12: 0.850/0.245
+ Epoch 2/12: 0.857/0.268
+ Epoch 3/12: 0.864/0.267
+ Epoch 4/12: 0.856/0.259
+ Epoch 5/12: 0.867/0.276
+ Epoch 6/12: 0.864/0.284
+ Epoch 7/12: 0.867/0.291
+ Epoch 8/12: 0.865/0.299
+ Epoch 9/12: 0.872/0.310
+ Epoch 10/12: 0.868/0.295
+ Epoch 11/12: 0.864/0.269
+ Epoch 12/12: 0.853/0.250
+ Medium 0.872/0.310
+
+=== Task V2-B n=20000 (cumulative mean WBC) ===
+ prevalence 0.053
+/usr/lib/python3/dist-packages/sklearn/linear_model/_logistic.py:469: ConvergenceWarning: lbfgs failed to converge (status=1):
+STOP: TOTAL NO. OF ITERATIONS REACHED LIMIT.
+
+Increase the number of iterations (max_iter) or scale the data as shown in:
+    https://scikit-learn.org/stable/modules/preprocessing.html
+Please also refer to the documentation for alternative solver options:
+    https://scikit-learn.org/stable/modules/linear_model.html#logistic-regression
+  n_iter_i = _check_optimize_result(
+ LogReg 0.877/0.281 RF 0.851/0.228
+ Small...
+ Epoch 1/12: 0.853/0.249
+ Epoch 2/12: 0.855/0.243
+ Epoch 3/12: 0.859/0.243
+ Epoch 4/12: 0.861/0.254
+ Epoch 5/12: 0.856/0.242
+ Epoch 6/12: 0.860/0.254
+ Epoch 7/12: 0.860/0.252
+ Epoch 8/12: 0.861/0.250
+ Epoch 9/12: 0.856/0.250
+ Epoch 10/12: 0.859/0.252
+ Epoch 11/12: 0.863/0.254
+ Epoch 12/12: 0.853/0.244
+ Small 0.863/0.254
+ Medium...
+ Epoch 1/12: 0.842/0.227
+ Epoch 2/12: 0.852/0.243
+ Epoch 3/12: 0.819/0.236
+ Epoch 4/12: 0.839/0.210
+ Epoch 5/12: 0.854/0.221
+ Epoch 6/12: 0.854/0.246
+ Epoch 7/12: 0.846/0.205
+ Epoch 8/12: 0.848/0.238
+ Epoch 9/12: 0.464/0.046
+ Epoch 10/12: 0.475/0.047

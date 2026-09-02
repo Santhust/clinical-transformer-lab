@@ -1,0 +1,81 @@
+
+=== Task V2-A n=10000 (3-12 visits, ordered rise+diag) ===
+ prevalence 0.134
+ Classical LogReg 0.708/0.272  RF 0.680/0.235
+ Small transformer (32/2)...
+   Epoch 1/12: AUROC 0.662 AUPRC 0.207
+   Epoch 2/12: AUROC 0.671 AUPRC 0.215
+   Epoch 3/12: AUROC 0.663 AUPRC 0.214
+   Epoch 4/12: AUROC 0.668 AUPRC 0.220
+   Epoch 5/12: AUROC 0.672 AUPRC 0.224
+   Epoch 6/12: AUROC 0.678 AUPRC 0.231
+   Epoch 7/12: AUROC 0.681 AUPRC 0.235
+   Epoch 8/12: AUROC 0.686 AUPRC 0.243
+   Epoch 9/12: AUROC 0.684 AUPRC 0.245
+   Epoch 10/12: AUROC 0.686 AUPRC 0.239
+   Epoch 11/12: AUROC 0.687 AUPRC 0.245
+   Epoch 12/12: AUROC 0.686 AUPRC 0.242
+  Small 0.687/0.245
+ Medium transformer (64/3)...
+   Epoch 1/12: AUROC 0.645 AUPRC 0.196
+   Epoch 2/12: AUROC 0.674 AUPRC 0.216
+   Epoch 3/12: AUROC 0.660 AUPRC 0.211
+   Epoch 4/12: AUROC 0.656 AUPRC 0.206
+   Epoch 5/12: AUROC 0.680 AUPRC 0.224
+   Epoch 6/12: AUROC 0.679 AUPRC 0.226
+   Epoch 7/12: AUROC 0.670 AUPRC 0.230
+   Epoch 8/12: AUROC 0.678 AUPRC 0.223
+   Epoch 9/12: AUROC 0.683 AUPRC 0.229
+   Epoch 10/12: AUROC 0.679 AUPRC 0.229
+   Epoch 11/12: AUROC 0.689 AUPRC 0.232
+   Epoch 12/12: AUROC 0.692 AUPRC 0.235
+  Medium 0.692/0.235
+
+=== Task V2-A n=20000 (3-12 visits, ordered rise+diag) ===
+ prevalence 0.131
+ Classical LogReg 0.709/0.268  RF 0.686/0.253
+ Small transformer (32/2)...
+   Epoch 1/12: AUROC 0.697 AUPRC 0.241
+   Epoch 2/12: AUROC 0.703 AUPRC 0.249
+   Epoch 3/12: AUROC 0.709 AUPRC 0.254
+   Epoch 4/12: AUROC 0.702 AUPRC 0.245
+   Epoch 5/12: AUROC 0.718 AUPRC 0.261
+   Epoch 6/12: AUROC 0.718 AUPRC 0.263
+   Epoch 7/12: AUROC 0.718 AUPRC 0.262
+   Epoch 8/12: AUROC 0.724 AUPRC 0.269
+   Epoch 9/12: AUROC 0.723 AUPRC 0.266
+   Epoch 10/12: AUROC 0.719 AUPRC 0.259
+   Epoch 11/12: AUROC 0.726 AUPRC 0.265
+   Epoch 12/12: AUROC 0.733 AUPRC 0.272
+  Small 0.733/0.272
+ Medium transformer (64/3)...
+   Epoch 1/12: AUROC 0.707 AUPRC 0.252
+   Epoch 2/12: AUROC 0.707 AUPRC 0.260
+   Epoch 3/12: AUROC 0.707 AUPRC 0.253
+   Epoch 4/12: AUROC 0.708 AUPRC 0.256
+n=20000 V2-A 3-12 visits
+ prevalence 0.131
+ LogReg (0.7087187145452012, 0.26841379351005556) RF (0.6863071854153346, 0.2527820321368715)
+ Small...
+ Epoch 1/12: 0.698/0.244
+ Epoch 2/12: 0.713/0.256
+ Epoch 3/12: 0.718/0.257
+ Epoch 4/12: 0.722/0.261
+ Epoch 5/12: 0.725/0.262
+ Epoch 6/12: 0.726/0.266
+ Epoch 7/12: 0.719/0.255
+ Epoch 8/12: 0.727/0.267
+ Epoch 9/12: 0.728/0.266
+ Epoch 10/12: 0.735/0.269
+ Epoch 11/12: 0.739/0.271
+ Epoch 12/12: 0.740/0.276
+ Small (np.float64(0.7399164023457252), np.float64(0.2759998742205866))
+ Medium...
+ Epoch 1/12: 0.704/0.246
+ Epoch 2/12: 0.707/0.247
+ Epoch 3/12: 0.711/0.255
+ Epoch 4/12: 0.705/0.246
+ Epoch 5/12: 0.698/0.241
+ Epoch 6/12: 0.704/0.240
+ Epoch 7/12: 0.695/0.222
+ Epoch 8/12: 0.708/0.245

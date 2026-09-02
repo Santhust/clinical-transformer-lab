@@ -1,0 +1,11 @@
+.kilo/
+.venv/
+__pycache__/
+*.pyc
+.DS_Store
+# keep synthetic data and plots versioned for reproducibility (small files)
+!data/
+!data/*.csv
+!data/*.npz
+!plots/
+!plots/*.png

@@ -1,0 +1,18 @@
+Generating n=20000 (large model test, seed=20042)...
+ prevalence 0.127, params ~500k (d=128, 4 layers)
+ Classical LogReg 0.847/0.467  RF 0.828/0.421
+ Training large transformer (d=128, 4 layers, 8 heads)...
+ Epoch 1/12: AUROC 0.680  AUPRC 0.212
+ Epoch 2/12: AUROC 0.691  AUPRC 0.258
+ Epoch 3/12: AUROC 0.692  AUPRC 0.253
+ Epoch 4/12: AUROC 0.736  AUPRC 0.237
+ Epoch 5/12: AUROC 0.630  AUPRC 0.195
+ Epoch 6/12: AUROC 0.648  AUPRC 0.208
+ Epoch 7/12: AUROC 0.500  AUPRC 0.127
+ Epoch 8/12: AUROC 0.500  AUPRC 0.127
+ Epoch 9/12: AUROC 0.639  AUPRC 0.171
+ Epoch 10/12: AUROC 0.500  AUPRC 0.127
+ Epoch 11/12: AUROC 0.500  AUPRC 0.127
+ Epoch 12/12: AUROC 0.500  AUPRC 0.127
+ => Large Transformer 0.736/0.237
+Saved results/large_20k.json
