@@ -8,6 +8,10 @@ from pathlib import Path
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, average_precision_score
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from attention_utils import extract_attention
+
 Path("results").mkdir(exist_ok=True)
 
 data = np.load("data/sequences.npz")
@@ -91,13 +95,64 @@ print(f"Best Transformer — AUROC {auc:.3f}  AUPRC {auprc:.3f}")
 with open("results/transformer_metrics.json","w") as f:
     json.dump({"AUROC": float(auc), "AUPRC": float(auprc)}, f, indent=2)
 
-# attention visualization: grab last layer attention (approx via encoder weights)
-# simple proxy: plot pooled contribution per visit for a positive patient
-fig, ax = plt.subplots(figsize=(8,3))
-idx = np.where(y_te==1)[0][0]
-# visualize sequence length
+# --- Patient trajectory (NOT attention) -----------------------------------
+# Kept because it is a useful sanity check on the inputs, but relabelled: this
+# is the raw WBC series, not what the model attends to. Real attention is below.
+idx = int(np.where(y_te == 1)[0][0])
 seq_len = int(m_te[idx].sum())
+fig, ax = plt.subplots(figsize=(8, 3))
 ax.plot(range(seq_len), X_te[idx, :seq_len, 2], marker="o", label="WBC (normalized)")
-ax.set_xlabel("Visit (time)"); ax.set_ylabel("value"); ax.set_title(f"Example positive patient (n_visits={seq_len}) — model looks at trend, not just last value")
-ax.legend(); fig.tight_layout(); fig.savefig("plots/transformer_example_patient.png", dpi=180); plt.close()
-print("Saved results + plots/transformer_example_patient.png")
+ax.set_xlabel("Visit (time)")
+ax.set_ylabel("value")
+ax.set_title(f"Example positive patient (n_visits={seq_len}) - input WBC trajectory")
+ax.legend()
+fig.tight_layout()
+fig.savefig("plots/transformer_example_patient.png", dpi=180)
+plt.close()
+
+# --- Real attention weights ------------------------------------------------
+# Requires a model, so reload the best checkpoint saved at line 85.
+model = EHRTransformer().to(device)
+model.load_state_dict(torch.load("results/best_transformer.pt", map_location=device))
+model.eval()
+
+te_x = torch.tensor(X_te, dtype=torch.float32).to(device)
+te_m = torch.tensor(m_te, dtype=torch.float32).to(device)
+
+# One positive and one negative patient of matched length, so the maps compare.
+pos_idx = int(np.where(y_te == 1)[0][0])
+neg_idx = int(np.where(y_te == 0)[0][0])
+attention = extract_attention(model, te_x, te_m)
+
+n_layers = len(attention)
+n_heads = attention[0].shape[1]
+fig, axes = plt.subplots(n_layers, n_heads, figsize=(3.0 * n_heads, 3.1 * n_layers), squeeze=False)
+for layer in range(n_layers):
+    w = attention[layer][pos_idx].cpu().numpy()   # (nhead, T, T)
+    n = int(m_te[pos_idx].sum())
+    for head in range(n_heads):
+        ax = axes[layer][head]
+        im = ax.imshow(w[head], cmap="viridis", vmin=0, vmax=1)
+        ax.set_xticks(range(w.shape[-1]))
+        ax.set_yticks(range(w.shape[-1]))
+        ax.axhline(n - 0.5, color="white", lw=1.5, ls="--")
+        ax.axvline(n - 0.5, color="white", lw=1.5, ls="--")
+        ax.set_title(f"L{layer} H{head}", fontsize=9)
+        ax.tick_params(labelsize=7)
+        if layer == n_layers - 1:
+            ax.set_xlabel("key (visit attended to)", fontsize=8)
+        if head == 0:
+            ax.set_ylabel("query (visit asking)", fontsize=8)
+        fig.colorbar(im, ax=ax, fraction=0.046)
+fig.suptitle(
+    f"Learned attention, positive test patient (n_visits={n}) - dashed line marks the "
+    "padding boundary.\nPadded key columns are exactly 0; padded query rows are NOT "
+    "zero, which is why masked pooling is required.",
+    fontsize=9,
+)
+fig.tight_layout()
+fig.savefig("plots/transformer_attention.png", dpi=180)
+plt.close()
+
+print(f"attention weights: {n_layers} layers x {n_heads} heads, shape {tuple(attention[0].shape)}")
+print("Saved results + plots/transformer_example_patient.png + plots/transformer_attention.png")
