@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture Walkthrough — Clinical Transformer Lab</title>
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<style>
+:root{--bg:#f8fafc;--card:#ffffff;--accent:#2563eb;--text:#0f172a;--muted:#64748b;--border:#e2e8f0}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--text);line-height:1.65}
+header{background:linear-gradient(135deg,#0f2a6b,#2563eb);color:white;padding:3rem 1.2rem;text-align:center}
+header h1{margin:0;font-size:2.2rem;letter-spacing:-.02em} header p{opacity:.92;max-width:820px;margin:1rem auto 0;font-size:1.05rem}
+.badge{display:inline-block;background:rgba(255,255,255,.18);padding:.25rem .65rem;border-radius:999px;font-size:.78rem;margin:.2rem;border:1px solid rgba(255,255,255,.2)}
+main{max-width:980px;margin:-1.5rem auto 2rem;padding:0 1rem}
+.card{background:var(--card);border-radius:16px;padding:1.5rem 1.6rem;box-shadow:0 6px 24px rgba(15,23,42,.06);margin:1.25rem 0;border:1px solid var(--border)}
+h2{margin:0 0 .6rem;color:#1e3a8a;font-size:1.35rem} h3{color:#1e40af;margin:1.2rem 0 .4rem;font-size:1.05rem}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:760px){.grid2{grid-template-columns:1fr}}
+img{max-width:100%;border-radius:12px;border:1px solid var(--border);background:white}
+.kpi{display:flex;gap:.8rem;flex-wrap:wrap;margin:.8rem 0} .kpi div{flex:1;min-width:135px;background:#f1f5f9;border-radius:12px;padding:.9rem;text-align:center;border:1px solid var(--border)}
+.kpi strong{font-size:1.35rem;display:block}
+a{color:#2563eb} code{background:#f1f5f9;padding:.15rem .35rem;border-radius:6px;font-size:.9em}
+pre{background:#0f172a;color:#e2e8f0;padding:1rem;border-radius:10px;overflow:auto;font-size:.9rem}
+pre code{background:transparent;color:inherit;padding:0;border:none}
+table.dataTable{font-size:.85rem}
+.muted{color:var(--muted)} .tight{margin:.4rem 0}
+ul.tight li{margin:.25rem 0}
+footer{text-align:center;color:var(--muted);padding:2rem 1rem;font-size:.9rem}
+.tag{font-size:.75rem;background:#eef2ff;color:#3730a3;padding:.15rem .45rem;border-radius:999px;border:1px solid #c7d2fe}
+nav.toc{background:#ffffff;border:1px solid var(--border);border-radius:12px;padding:0.8rem 1rem;margin:1rem 0;position:sticky;top:8px;z-index:5}
+nav.toc a{margin-right:0.8rem;font-size:0.85rem;text-decoration:none}
+
+.tabs{margin-top:0.8rem;border:1px solid var(--border);border-radius:10px;overflow:hidden}
+.tab-buttons{display:flex;flex-wrap:wrap;background:#f1f5f9;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;min-width:90px;padding:0.5rem 0.6rem;border:none;background:transparent;cursor:pointer;font-size:0.8rem;color:var(--muted);border-right:1px solid var(--border)}
+.tab-btn.active{background:white;color:var(--text);font-weight:600}
+.tab-content{display:none;padding:0}
+.tab-content.active{display:block}
+.tab-content pre{margin:0;border-radius:0;max-height:320px;overflow:auto}
+
+.diagram{width:100%;height:auto;display:block;background:#fbfdff;border:1px solid var(--border);border-radius:12px}
+.gloss{display:grid;grid-template-columns:1fr 1fr;gap:.5rem 1.2rem;margin:.6rem 0 0}
+@media(max-width:760px){.gloss{grid-template-columns:1fr}}
+.gloss div{border-left:3px solid #c7d2fe;padding:.35rem .6rem;background:#f8fafc;border-radius:0 8px 8px 0}
+.gloss b{color:#1e3a8a;font-size:.9rem}
+.gloss span{display:block;color:#334155;font-size:.87rem}
+table.plain{width:100%;border-collapse:collapse;font-size:.87rem;margin:.6rem 0}
+table.plain th,table.plain td{border:1px solid var(--border);padding:.45rem .6rem;text-align:left;vertical-align:top}
+table.plain th{background:#f1f5f9;color:#1e3a8a}
+table.plain code{font-size:.82em}
+.yes{color:#15803d;font-weight:600} .no{color:#b91c1c;font-weight:600}
+.callout{border-radius:10px;padding:.8rem 1rem;margin:.7rem 0;font-size:.9rem;border:1px solid}
+.callout.warn{background:#fffbeb;border-color:#fde68a;color:#78350f}
+.callout.good{background:#f0fdf4;border-color:#bbf7d0;color:#14532d}
+.callout.info{background:#eff6ff;border-color:#bfdbfe;color:#1e3a8a}
+
+</style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+</head>
+<body>
+<header>
+  <h1>Architecture Walkthrough</h1>
+  <p>How the transformer in <code style="background:rgba(255,255,255,.16);color:#fff">src/02_transformer_ehr.py</code> works on patient records &mdash; stage by stage, with every shape and default measured on the installed library</p>
+  <div style="margin-top:1rem">
+    <span class="badge">PyTorch 2.14 (CPU)</span><span class="badge">Encoder-only</span><span class="badge">Verified shapes</span><span class="badge">Train from scratch</span>
+  </div>
+  <p style="margin-top:1rem;font-size:.9rem;opacity:.9"><a href="index.html" style="color:white;text-decoration:underline">&larr; back to the study</a></p>
+</header>
+
+<main>
+<nav class="toc">
+  <strong style="font-size:0.85rem">Contents:</strong>
+  <a href="#why">Why attention</a><a href="#glossary">Glossary</a><a href="#kind">What kind of model</a><a href="#pipeline">The pipeline</a><a href="#block">Inside a block</a><a href="#masks">Masks</a><a href="#predict">One prediction</a><a href="#limits">Limits</a><a href="#fixed">Corrections</a><a href="#real">Real EHR</a>
+</nav>
+
+  <div class="card" style="background:#fffbeb;border-color:#fde68a">
+    <h2 style="color:#92400e">How to read this page</h2>
+    <p class="tight">Every number, shape and framework default on this page was <strong>measured on the installed library</strong> (PyTorch <code>2.14.0+cpu</code>, NumPy <code>2.5.2</code>) rather than taken from documentation or memory. Where a claim is an inference rather than a measurement, it says so.</p>
+    <p class="tight muted" style="font-size:.85rem">For a hands-on version, open <code>notebooks/architecture_walkthrough.ipynb</code> &mdash; 12 sections that print each claim below. For interactive attention, run <code>streamlit run app.py</code>.</p>
+  </div>
+
+  <!-- 1 WHY -->
+  <div class="card" id="why">
+    <h2>1. Why reach for attention at all?</h2>
+    <p>Start from the problem, not the architecture. The clearest case in this study is task V2-C, whose label is defined by <code>src/10_taskV2_C.py:32</code>:</p>
+<pre><code>has = (fill[0, 3] in [0.25, 0.75]) and (fill[-1, 2] &gt; 0.65)
+#      diagnosis code at the FIRST visit      WBC at the LAST visit</code></pre>
+    <p>The label depends on <strong>two positions at once</strong> &mdash; visit 0 and visit <em>k</em> &mdash; and on nothing else about the record. Classical models are given a flattened row (<code>src/10_taskV2_C.py:40</code>):</p>
+<pre><code>age, sex, n_visits, hr_last, sbp_last, wbc_last, diag_last, wbc_trend, hr_trend</code></pre>
+    <p class="tight">Notice what is <strong>absent</strong>: there is no <code>diag_first</code> column. A logistic regression or random forest cannot recover a quantity that was never given to it, so no amount of tuning lifts it past a ceiling. Attention can, because one query can reach a specific distant position and multiply it against another.</p>
+
+    <svg class="diagram" viewBox="0 0 940 232" role="img" aria-label="A patient timeline where attention links a diagnosis at the first visit to a lab value at the last visit">
+      <defs>
+        <marker id="ar1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#2563eb"/>
+        </marker>
+      </defs>
+      <text x="10" y="16" font-family="ui-monospace,monospace" font-size="12" fill="#64748b">one patient = one sequence of 12 visits</text>
+      <text x="430" y="30" font-family="ui-monospace,monospace" font-size="12" fill="#2563eb" text-anchor="middle">attention can multiply position 0 by position 11</text>
+      <g font-family="ui-monospace,monospace" font-size="11" text-anchor="middle">
+        <rect x="10" y="48" width="62" height="46" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+        <text x="41" y="70" fill="#1e3a8a" font-weight="700">v0</text>
+        <text x="41" y="86" fill="#475569">diag</text>
+        <rect x="78" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="146" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="214" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="282" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="350" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="418" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="486" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="554" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="622" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="690" y="48" width="62" height="46" rx="8" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <rect x="758" y="48" width="62" height="46" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+        <text x="789" y="70" fill="#166534" font-weight="700">v11</text>
+        <text x="789" y="86" fill="#475569">WBC</text>
+        <text x="449" y="76" fill="#94a3b8">&#8230;</text>
+      </g>
+      <path d="M72,48 C300,36 620,36 788,48" fill="none" stroke="#2563eb" stroke-width="2.5" stroke-dasharray="6 4" marker-end="url(#ar1)"/>
+      <rect x="10" y="118" width="920" height="92" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="24" y="142" font-family="ui-monospace,monospace" font-size="11" fill="#0f172a">the same V2-C task, n = 10,000 &#160;(results/taskV2_C.json)</text>
+      <g font-family="ui-monospace,monospace" font-size="12">
+        <text x="24" y="170" fill="#15803d" font-weight="700">Transformer (d=32, 2 layers)</text>
+        <text x="330" y="170" fill="#15803d" font-weight="700">AUROC 0.959 &#160;AUPRC 0.843</text>
+        <text x="24" y="194" fill="#b91c1c">Logistic regression / random forest</text>
+        <text x="330" y="194" fill="#b91c1c">AUROC 0.706 &#160;AUPRC 0.264</text>
+      </g>
+    </svg>
+
+    <div class="callout warn">
+      <strong>Keep this in proportion.</strong> V2-C is a synthetic task whose label rule was written by the generator in <code>src/10_taskV2_C.py</code>. It demonstrates <em>that attention can bind two distant positions</em>, which is a real and well-documented property of the architecture. It is <strong>not</strong> evidence about rheumatoid arthritis, flare prediction, or any clinical outcome. Nothing in this repository tests a clinical hypothesis.
+    </div>
+  </div>
+
+  <!-- 2 GLOSSARY -->
+  <div class="card" id="glossary">
+    <h2>2. Glossary</h2>
+    <p class="muted tight">Every term this page uses, defined once. Nothing here depends on any other project.</p>
+    <div class="gloss">
+      <div><b>token / sequence element</b><span>One position in the input sequence. Here: <strong>one clinic visit</strong>. Six numbers, not a word.</span></div>
+      <div><b>embedding</b><span>Turning a discrete input into a dense vector. For an id it is a table lookup; for a feature vector it is a linear projection.</span></div>
+      <div><b>positional encoding</b><span>Tells the model <em>which</em> position a token sits at, since attention alone is order-blind.</span></div>
+      <div><b>self-attention</b><span>Every token computes how much it should weigh every other token, then mixes their values.</span></div>
+      <div><b>Q, K, V</b><span>Query (what I am looking for), Key (what I offer), Value (what I contribute). All three are learned linear projections of the same vector.</span></div>
+      <div><b>head</b><span>One independent attention pattern running in parallel. <code>d_model=32</code> split into 4 heads gives each head 8 dimensions.</span></div>
+      <div><b>encoder block</b><span>Attention, then a residual add, then a small feed-forward network, with layer normalisation. Stacked <code>num_layers</code> deep.</span></div>
+      <div><b>feed-forward network</b><span>Applied per position, independently: widen to <code>dim_feedforward</code>, activate, narrow back. <code>64</code> here.</span></div>
+      <div><b>residual connection</b><span>Add the block's input back to its output, so gradients have a direct path.</span></div>
+      <div><b>layer norm</b><span>Rescale each vector to zero mean and unit variance, then apply learned scale and shift. Here <code>eps=1e-5</code>.</span></div>
+      <div><b>padding mask</b><span>Marks filler positions so they cannot be attended to. Required because patients have different visit counts.</span></div>
+      <div><b>causal mask</b><span>Hides later positions so a token cannot see the future. Needed only for left-to-right generation. <strong>Not used here.</strong></span></div>
+      <div><b>pooling</b><span>Collapse the sequence axis into one vector per patient.</span></div>
+      <div><b>classification head</b><span>Final linear layer turning that vector into a prediction.</span></div>
+      <div><b>logit</b><span>Raw pre-sigmoid score. Higher means more likely positive; the exact number is not a probability.</span></div>
+      <div><b>pos_weight</b><span>Multiplies the positive term in binary cross-entropy to counteract class imbalance. No analogue in language modelling.</span></div>
+      <div><b>AUROC</b><span>Ranking quality across all thresholds. Looks healthy even on very imbalanced data.</span></div>
+      <div><b>AUPRC</b><span>Precision-recall area. Its <strong>floor is the prevalence</strong>, so it is the honest metric here.</span></div>
+    </div>
+  </div>
+
+  <!-- 3 KIND -->
+  <div class="card" id="kind">
+    <h2>3. What kind of transformer this is</h2>
+    <p>This is an <strong>encoder-only</strong> transformer. It reads the entire record at once and emits one prediction. That single classification removes most of what you would meet in a text model:</p>
+    <table class="plain">
+      <tr><th>Ingredient</th><th>Text generation</th><th>Here</th><th>Why</th></tr>
+      <tr><td>Vocabulary + <code>nn.Embedding</code></td><td class="yes">yes</td><td class="no">no</td><td>Features arrive as numbers; nothing to look up.</td></tr>
+      <tr><td>Causal mask</td><td class="yes">yes</td><td class="no">no</td><td>The label is computed from the <em>complete</em> record. Hiding later visits from earlier ones would only discard information.</td></tr>
+      <tr><td>Language-model head (one logit per vocabulary entry)</td><td class="yes">yes</td><td class="no">no</td><td>One risk score per patient, not a distribution over words.</td></tr>
+      <tr><td>Generation loop</td><td class="yes">yes</td><td class="no">no</td><td>There is nothing to generate.</td></tr>
+      <tr><td>Padding mask</td><td class="yes">yes</td><td class="yes">yes</td><td>Patients have 2&ndash;8 visits here (3&ndash;12 in the V2 tasks); sequences are ragged.</td></tr>
+      <tr><td>Pooling to a single vector</td><td class="no">no</td><td class="yes">yes</td><td>One prediction per patient, so the sequence axis must collapse.</td></tr>
+      <tr><td>Class-imbalance weighting</td><td class="no">no</td><td class="yes">yes</td><td>About 9.8% of patients are positive.</td></tr>
+    </table>
+    <div class="callout info">
+      <strong>One more thing that differs from modern practice.</strong> <code>nn.TransformerEncoderLayer</code> defaults to <code>norm_first=False</code> &mdash; verified on the installed version. That is <em>post</em>-normalisation, the original 2017 arrangement. Most current text models use <em>pre</em>-normalisation (<code>norm_first=True</code>), which trains more stably at depth. With only 2 layers here it makes no practical difference, but it is a genuine difference from a modern text model and is visible in <code>docs/plots/</code> discussions of training behaviour.
+    </div>
+  </div>
+
+  <!-- 4 PIPELINE -->
+  <div class="card" id="pipeline">
+    <h2>4. The pipeline, stage by stage</h2>
+    <p>The entire model is <code>src/02_transformer_ehr.py:27-45</code>. Measured shapes for a batch of 4 patients with 8 visit slots:</p>
+    <svg class="diagram" viewBox="0 0 940 308" role="img" aria-label="Six stage flow from raw visits to a single risk logit, each labelled with its tensor shape and source line">
+      <defs>
+        <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
+          <path d="M0,0 L0,6 L7,3 z" fill="#64748b"/>
+        </marker>
+      </defs>
+      <g font-family="ui-monospace,monospace" font-size="11">
+        <rect x="8" y="50" width="132" height="86" rx="10" fill="#f1f5f9" stroke="#94a3b8"/>
+        <text x="74" y="72" text-anchor="middle" fill="#0f172a" font-weight="700">input</text>
+        <text x="74" y="94" text-anchor="middle" fill="#475569">(B, 8, 6)</text>
+        <text x="74" y="112" text-anchor="middle" fill="#64748b" font-size="10">patients</text>
+        <text x="74" y="127" text-anchor="middle" fill="#64748b" font-size="10">x visits</text>
+
+        <rect x="160" y="50" width="132" height="86" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+        <text x="226" y="72" text-anchor="middle" fill="#1e3a8a" font-weight="700">Linear 6&#8594;32</text>
+        <text x="226" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
+        <text x="226" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 30</text>
+        <text x="226" y="129" text-anchor="middle" fill="#64748b" font-size="10">the embedding</text>
+
+        <rect x="312" y="50" width="132" height="86" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+        <text x="378" y="72" text-anchor="middle" fill="#1e3a8a" font-weight="700">+ pos_emb</text>
+        <text x="378" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
+        <text x="378" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 38</text>
+        <text x="378" y="129" text-anchor="middle" fill="#64748b" font-size="10">learned, 8 slots</text>
+
+        <rect x="464" y="50" width="132" height="86" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+        <text x="530" y="72" text-anchor="middle" fill="#166534" font-weight="700">2 blocks</text>
+        <text x="530" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
+        <text x="530" y="116" text-anchor="middle" fill="#15803d" font-size="10">line 41</text>
+        <text x="530" y="129" text-anchor="middle" fill="#64748b" font-size="10">4 heads each</text>
+
+        <rect x="616" y="50" width="132" height="86" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
+        <text x="682" y="72" text-anchor="middle" fill="#78350f" font-weight="700">masked mean</text>
+        <text x="682" y="94" text-anchor="middle" fill="#475569">(B, 32)</text>
+        <text x="682" y="116" text-anchor="middle" fill="#92400e" font-size="10">lines 43&#8211;44</text>
+        <text x="682" y="129" text-anchor="middle" fill="#64748b" font-size="10">T collapses</text>
+
+        <rect x="768" y="50" width="132" height="86" rx="10" fill="#fee2e2" stroke="#dc2626"/>
+        <text x="834" y="72" text-anchor="middle" fill="#7f1d1d" font-weight="700">Linear 32&#8594;1</text>
+        <text x="834" y="94" text-anchor="middle" fill="#475569">(B,)</text>
+        <text x="834" y="116" text-anchor="middle" fill="#991b1b" font-size="10">line 45</text>
+        <text x="834" y="129" text-anchor="middle" fill="#64748b" font-size="10">risk logit</text>
+      </g>
+      <g stroke="#64748b" stroke-width="1.6" marker-end="url(#ar2)">
+        <line x1="142" y1="93" x2="156" y2="93"/>
+        <line x1="294" y1="93" x2="308" y2="93"/>
+        <line x1="446" y1="93" x2="460" y2="93"/>
+        <line x1="598" y1="93" x2="612" y2="93"/>
+        <line x1="750" y1="93" x2="764" y2="93"/>
+      </g>
+      <g font-family="ui-monospace,monospace" font-size="11" fill="#334155">
+        <text x="8" y="166">B = patients in batch (64 during training) &#160;&#8226;&#160; T = visit slots, 8 here (12 in the V2 tasks)</text>
+        <text x="8" y="184">d_in = 6 features per visit &#160;&#8226;&#160; d_model = 32 hidden coordinates per visit</text>
+        <text x="8" y="208" fill="#2563eb">attention runs along T &#8212; visits attend to visits. The 6 features mix only inside the Q/K/V projection.</text>
+        <text x="8" y="228" fill="#2563eb">So the matrix is T&#215;T (here 8&#215;8), never 6&#215;6.</text>
+      </g>
+      <rect x="8" y="244" width="892" height="48" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="22" y="264" font-family="ui-monospace,monospace" font-size="11" fill="#0f172a">nn.Embedding(50257, 768)  &#8212;  look up a row by integer id  &#8594;  nn.Linear(6, 32)  &#8212;  project the vector you have</text>
+      <text x="22" y="282" font-family="ui-monospace,monospace" font-size="11" fill="#64748b">nn.Embedding appears zero times anywhere in src/. Verified by search.</text>
+    </svg>
+
+    <div class="tabs" data-tabs="pipe">
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="pipe-code">The code</button>
+        <button class="tab-btn" data-tab="pipe-shapes">Why each shape</button>
+        <button class="tab-btn" data-tab="pipe-params">Where the parameters are</button>
+      </div>
+      <div class="tab-content active" id="pipe-code">
+<pre><code>class EHRTransformer(torch.nn.Module):
+    def __init__(self, d_in=6, d_model=32, nhead=4):
+        super().__init__()
+        self.input_proj = torch.nn.Linear(d_in, d_model)          # 30
+        self.pos_emb = torch.nn.Parameter(torch.randn(1, 8, d_model)*0.1)   # 32
+        enc_layer = torch.nn.TransformerEncoderLayer(
+            d_model=d_model, nhead=nhead, dim_feedforward=64, batch_first=True)   # 33
+        self.encoder = torch.nn.TransformerEncoder(
+            enc_layer, num_layers=2, enable_nested_tensor=False)  # 34
+        self.classifier = torch.nn.Linear(d_model, 1)             # 35
+
+    def forward(self, x, mask):
+        h = self.input_proj(x) + self.pos_emb[:, :x.size(1), :]   # 38
+        pad_mask = (mask == 0)                                    # 40  True = ignore
+        h = self.encoder(h, src_key_padding_mask=pad_mask)        # 41
+        mask_e = mask.unsqueeze(-1)                               # 43
+        pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)  # 44
+        return self.classifier(pooled).squeeze(-1)                # 45</code></pre>
+      </div>
+      <div class="tab-content" id="pipe-shapes">
+<pre><code>input x            (B, 8, 6)    B patients, 8 visit slots, 6 features
+mask               (B, 8)       1.0 = real visit, 0.0 = padding
+
+after input_proj   (B, 8, 32)   6 features -> 32 hidden coordinates
+after + pos_emb    (B, 8, 32)   same shape; position added, not concatenated
+after encoder      (B, 8, 32)   block preserves the sequence length
+after pooling      (B, 32)      the sequence axis is gone
+after classifier   (B,)         one logit per patient
+
+squeeze(-1) removes the trailing dimension left by Linear(..., 1).</code></pre>
+        <p class="tight" style="padding:.8rem 1rem 0"><strong>The mask is a float tensor, not a boolean.</strong> It is used twice for two different jobs: negated into a padding mask (<code>mask == 0</code>, because the framework's convention is <code>True = ignore</code>), and multiplied into the hidden states during pooling. The two conventions are opposite, which is why line 40 exists at all.</p>
+      </div>
+      <div class="tab-content" id="pipe-params">
+<pre><code>total parameters: 17,601
+
+  input_proj (Linear 6->32)          224  (  1.3%)
+  encoder (2 layers)              17,088  ( 97.1%)
+  classifier (Linear 32->1)           33  (  0.2%)
+  pos_emb (Parameter)                256  (  1.5%)
+
+per encoder layer:
+  self_attn.in_proj_weight         (96, 32)    <- Q, K and V in one matrix
+  self_attn.in_proj_bias           (96,)
+  self_attn.out_proj.weight        (32, 32)    <- recombines the heads
+  self_attn.out_proj.bias          (32,)
+  linear1.weight                   (64, 32)    <- feed-forward, widen
+  linear1.bias                     (64,)
+  linear2.weight                   (32, 64)    <- feed-forward, narrow
+  linear2.bias                     (32,)
+  norm1.weight                     (32,)
+  norm1.bias                       (32,)
+  norm2.weight                     (32,)
+  norm2.bias                       (32,)</code></pre>
+        <p class="tight" style="padding:.8rem 1rem 1rem">97% of the model is the two transformer blocks. The input and output layers are rounding errors &mdash; everything this model knows about medicine lives in the encoder.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5 BLOCK -->
+  <div class="card" id="block">
+    <h2>5. Inside one encoder block</h2>
+    <p>Nothing in <code>src/02_transformer_ehr.py</code> writes a block out by hand. The whole thing is supplied by <code>nn.TransformerEncoderLayer</code>, which contains, in the order reported by the installed version:</p>
+    <div class="grid2">
+      <div>
+        <h3>Submodules, in order</h3>
+        <pre><code>self_attn      MultiheadAttention   heads = 4
+linear1       Linear 32 -> 64
+dropout
+linear2       Linear 64 -> 32
+norm1         LayerNorm(32)
+norm2         LayerNorm(32)
+dropout1
+dropout2</code></pre>
+      </div>
+      <div>
+        <h3>Defaults actually in force</h3>
+        <pre><code>norm_first = False   -> post-LN
+dropout    = 0.1
+eps        = 1e-05
+activation = ReLU
+dim_feedforward = 64  (2x d_model)</code></pre>
+      </div>
+    </div>
+    <p class="tight">Each block does: <strong>normalise &rarr; attention &rarr; add the input back &rarr; normalise &rarr; feed-forward &rarr; add back</strong>. Because <code>norm_first=False</code>, the normalise step precedes each sub-layer rather than following it.</p>
+    <div class="callout good">
+      <strong>The two layers are independent.</strong> <code>TransformerEncoder(layer, num_layers=2)</code> deep-copies the single layer you pass it. Verified: <code>layers[0] is layers[1]</code> is <code>False</code>, their parameters live at different addresses, and they only start out numerically identical. They are <em>not</em> weight-tied, so the model really is 2 blocks deep.
+    </div>
+    <p class="tight muted" style="font-size:.9rem">Also verified: <code>model.encoder.norm</code> is <code>None</code>, so there is <strong>no</strong> extra normalisation layer after the final block. That is the framework default and is consistent with post-LN, where each block already ends normalised.</p>
+  </div>
+
+  <!-- 6 MASKS -->
+  <div class="card" id="masks">
+    <h2>6. Masks &mdash; and the subtlety that matters</h2>
+    <table class="plain">
+      <tr><th>Kind</th><th>What it hides</th><th>Present?</th><th>Where</th></tr>
+      <tr><td>Padding mask</td><td>Filler visit slots, so they cannot be attended to</td><td class="yes">yes</td><td><code>src_key_padding_mask</code>, line 41</td></tr>
+      <tr><td>Causal mask</td><td>Later positions, for left-to-right generation</td><td class="no">no</td><td>would be <code>is_causal=True</code></td></tr>
+      <tr><td>Missing-feature mask</td><td>An absent <em>measurement</em> inside a real visit</td><td class="no">no</td><td>imputed at <code>generate_synthetic_ehr.py:41</code></td></tr>
+    </table>
+    <p>Padding and padding-as-value are genuinely ambiguous here: a padded slot holds <code>0.0</code>, and so do real visits for <code>sex=0</code> or <code>diag=0</code>. Nothing in the numbers distinguishes "not coded" from "does not exist". The mask is the only thing that knows.</p>
+
+    <h3>The mask is one-directional, and that surprises people</h3>
+    <ul class="tight">
+      <li>A padded <strong>key</strong> column is <strong>exactly zero</strong>. Nobody attends to a filler slot.</li>
+      <li>A padded <strong>query</strong> row is <strong>not zero</strong> &mdash; it still sums to 1.0. A filler slot computes a full, legitimate-looking distribution over the real visits and produces a genuine output vector.</li>
+    </ul>
+    <p>So a padded slot manufactures a plausible summary of the patient. Masked mean pooling at lines 43&ndash;44 is what stops those fabrications reaching the prediction. It is load-bearing correctness, not a stylistic choice.</p>
+    <img src="plots/transformer_attention.png" alt="Learned attention maps for all layers and heads of one positive test patient. The dashed line marks the padding boundary; columns to the right are pure black while rows below the line still carry weight.">
+    <p class="tight muted" style="font-size:.88rem">Real learned weights, one positive test patient with 6 visits. Produced by <code>src/02_transformer_ehr.py</code>; regenerate with <code>python src/02_transformer_ehr.py</code>. Layer 0 is diffuse and roughly local. Layer 1 is much sharper, and head 2 has collapsed onto a single column &mdash; a head that reads the most recent visit regardless of who is asking. Columns right of the dashed line are exactly zero; rows below it are not.</p>
+    <div class="callout info">
+      <strong>Using all observed visits is correct here.</strong> A padding mask removes filler; it never removes information the model is entitled to. It is not the same device as a causal mask, which would remove <em>real</em> later visits. Because the label is computed from the completed record, a causal mask here would be a handicap rather than a safeguard.
+    </div>
+  </div>
+
+  <!-- 7 PREDICT -->
+  <div class="card" id="predict">
+    <h2>7. From visits to one prediction</h2>
+    <div class="grid2">
+      <div>
+        <h3>Pooling</h3>
+        <pre><code>mask_e = mask.unsqueeze(-1)                          # (B,8,1)
+pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)   # (B,32)</code></pre>
+        <p class="tight">Multiplies each visit's 32-dim summary by its real/padding flag, sums over visits, divides by the number of real visits. The <code>clamp(min=1)</code> guards against dividing by zero for a hypothetical patient with no visits at all.</p>
+      </div>
+      <div>
+        <h3>Head and loss</h3>
+        <pre><code>self.classifier = torch.nn.Linear(d_model, 1)     # 32 -> 1
+
+pos_weight = torch.tensor(
+    [(len(y_tr) - y_tr.sum()) / y_tr.sum()])            # ~8.7
+crit = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)</code></pre>
+        <p class="tight"><code>BCEWithLogitsLoss</code> applies the sigmoid internally, so there is no separate sigmoid step and the arithmetic stays stable for extreme logits.</p>
+      </div>
+    </div>
+    <h3>Why the weighting is not optional</h3>
+    <p class="tight">Prevalence in this dataset is <strong>0.0977</strong> &mdash; roughly 293 positives out of 3,000. Unweighted, the cheapest way to reduce loss is to predict "no" every time. Measured <code>pos_weight</code> is <strong>8.68</strong>.</p>
+    <div class="kpi">
+      <div><strong>0.0977</strong>prevalence (AUPRC floor)</div>
+      <div><strong>8.68</strong>pos_weight</div>
+      <div><strong>0.878</strong>AUROC (test-selected, see §8)</div>
+      <div><strong>0.449</strong>AUPRC</div>
+    </div>
+    <p class="tight">The AUPRC floor matters when reading results: a model predicting "no" always scores AUPRC 0.098. Any reported figure should be compared against that, not against 0.</p>
+  </div>
+
+  <!-- 8 LIMITS -->
+  <div class="card" id="limits" style="border-left:4px solid #f59e0b">
+    <h2>8. Honest limitations</h2>
+    <p class="tight">Reported so the numbers above are not over-read. None of these are hidden elsewhere in the project; they are collected here.</p>
+    <table class="plain">
+      <tr><th>Issue</th><th>Evidence</th><th>Effect</th></tr>
+      <tr>
+        <td><strong>The best epoch is selected on the test set</strong></td>
+        <td><code>src/02_transformer_ehr.py:80</code> computes AUROC on <code>X_te</code>; line 82 saves the checkpoint when it improves</td>
+        <td>AUROC 0.878 is optimistically biased. There is no validation split.</td>
+      </tr>
+      <tr>
+        <td><strong>No torch seed</strong></td>
+        <td>the generator seeds NumPy (<code>generate_synthetic_ehr.py:12</code>) but this script never seeds torch</td>
+        <td>Reruns move the metrics: 0.863 &rarr; 0.878 AUROC, 0.391 &rarr; 0.449 AUPRC on this hardware.</td>
+      </tr>
+      <tr>
+        <td><strong>Epoch count disagrees with the README</strong></td>
+        <td><code>README.md:25</code> says 12 epochs; line 62 runs <code>range(35)</code></td>
+        <td>Documentation is wrong, not the code.</td>
+      </tr>
+      <tr>
+        <td><strong>Cosine schedule is cut short</strong></td>
+        <td><code>T_max=30</code> at line 59, but 35 epochs run</td>
+        <td>Measured: learning rate falls to ~5.5e-6 by epoch 29, hits <code>0.0</code> at epoch 30, then <em>rises</em> to 8.7e-5 by epoch 34. The last 5 epochs are largely wasted.</td>
+      </tr>
+      <tr>
+        <td><strong>Not equal footing</strong></td>
+        <td>classical baselines get stratified 5-fold CV; the transformer gets one 80/20 split</td>
+        <td>The comparison is indicative, not a controlled benchmark.</td>
+      </tr>
+      <tr>
+        <td><strong>The data is synthetic</strong></td>
+        <td>every cohort is generated in <code>src/</code> with known label rules</td>
+        <td>Results show what the architecture <em>can</em> do on a controlled pattern. They say nothing about clinical validity.</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- 9 CORRECTIONS -->
+  <div class="card" id="fixed">
+    <h2>9. Two things this project previously got wrong</h2>
+    <p class="tight">Both were claims about attention that the code did not support. Both are now fixed on the <code>feat/architecture-walkthrough</code> branch.</p>
+
+    <h3>The "attention visualization" that visualised no attention</h3>
+    <p class="tight"><code>src/02_transformer_ehr.py:94-102</code> carried the comment <em>"attention visualization: grab last layer attention"</em> and then plotted a patient's WBC series. No attention weights were ever read out.</p>
+    <p class="tight">They could not be. On the installed version, <code>nn.TransformerEncoder.forward()</code> does not accept <code>need_weights</code> at all:</p>
+<pre><code>model.encoder(h, need_weights=True)
+# TypeError: TransformerEncoder.forward() got an unexpected keyword argument 'need_weights'</code></pre>
+    <p class="tight">The layer also calls attention internally with <code>need_weights=False</code>. So <code>src/attention_utils.py</code> captures, via a forward pre-hook, the tensor attention actually receives, then replays it with <code>need_weights=True</code>. Capturing rather than reconstructing also sidesteps a subtlety: <code>TransformerEncoderLayer.forward</code> contains two branches, one passing <code>norm1(x)</code> to attention and one passing raw <code>x</code>. Measured on this configuration in eval mode, attention receives the <strong>un-normalised</strong> input.</p>
+    <div class="callout good">
+      <strong>Verified equivalent to the formula.</strong> Building Q and K from <code>in_proj_weight</code>/<code>in_proj_bias</code> on the captured tensor and evaluating <code>softmax(QK<sup>T</sup>/&radic;head_dim + padding mask)</code> matches the extracted weights to <strong>4.5e-08</strong>. So the helper is not an approximation of the attention operation &mdash; it is that operation.
+    </div>
+
+    <h3>The playground that showed random numbers</h3>
+    <p class="tight"><code>app.py</code> built its "Attention map" from <code>np.random.randn</code> plus a hand-added self/neighbour bias, and the page's own note conceded the next step would be to replace it with learned Q, K and V. A visitor had no way to tell the difference.</p>
+    <p class="tight">It now loads <code>results/best_transformer.pt</code> (79 KiB, 17,601 parameters) and plots genuine per-layer, per-head weights, with a patient picker, the visit table, and a breakdown of how much attention each visit receives. The old synthetic map survives as a second tab, explicitly labelled a schematic of the operation rather than a trained model.</p>
+
+    <div class="callout warn">
+      <strong>Two bugs worth remembering, both mine, both found by testing rather than reading.</strong> First, replaying the captured input for weight extraction while the model was back in training mode re-enabled <code>dropout=0.1</code> inside attention: row sums came out as 1.111 with scattered zeros at <em>valid</em> positions. Attention read out in train mode is meaningless. Second, both <code>app.py</code> and the notebook reused the variable <code>n_visits</code> / <code>m</code> for two different things in one shared scope, so a slider in one section silently rebound the array another section was still indexing.
+    </div>
+  </div>
+
+  <!-- 10 REAL -->
+  <div class="card" id="real" style="background:#f0fdf4;border-color:#bbf7d0">
+    <h2>10. What real EHR data would change</h2>
+    <p class="tight">The synthetic setup isolates a methodological question. Moving to a real registry breaks several assumptions at once.</p>
+    <table class="plain">
+      <tr><th>Assumption here</th><th>Real data</th></tr>
+      <tr><td>Visit <em>index</em> is the time axis, via a learned position table of 8 slots</td><td>Intervals between visits range from hours to years. Position 3 means nothing comparable across patients. Needs a <strong>time-aware encoding</strong> using real gaps, and an unbounded scheme rather than a fixed table.</td></tr>
+      <tr><td>Five diagnosis codes, <code>diag/4</code></td><td>Thousands of ICD codes. That <em>is</em> a genuine vocabulary, so a real <code>nn.Embedding</code> becomes appropriate &mdash; the one thing this repository has none of.</td></tr>
+      <tr><td>One flat 6-number vector per visit</td><td>Heterogeneous types mixed in one vector (labs, codes, drugs, doses). Production systems typically embed each type separately and concatenate.</td></tr>
+      <tr><td>Missingness imputed to a constant <code>0.7</code></td><td>Whether a test was <em>not ordered</em> is itself informative. A separate missingness indicator usually beats a constant fill.</td></tr>
+      <tr><td>Test-selected best epoch, single random split</td><td>Needs a validation split, patient-level temporal splitting to avoid leakage, calibration, and external validation on a different site.</td></tr>
+      <tr><td>Diagnosis code treated as an ordered scalar <code>diag/4</code></td><td>Codes are categorical. <code>0.25</code> and <code>0.75</code> have no arithmetic relationship.</td></tr>
+    </table>
+    <p class="tight muted" style="font-size:.9rem">This page documents the implementation in this repository. It is not a claim that the approach is validated for any clinical use.</p>
+  </div>
+
+  <div class="card" style="background:#eff6ff;border-color:#bfdbfe">
+    <h2 style="color:#1e3a8a">Explore it yourself</h2>
+    <ul class="tight">
+      <li><code>notebooks/architecture_walkthrough.ipynb</code> &mdash; 12 sections that print every claim on this page, with a sandbox at the end.</li>
+      <li><code>streamlit run app.py</code> &mdash; interactive attention over real trained weights.</li>
+      <li><code>python src/02_transformer_ehr.py</code> &mdash; retrains and regenerates both attention figures (~10 min on CPU).</li>
+      <li><a href="index.html">The study</a> &mdash; results across all four tasks and every cohort size.</li>
+    </ul>
+  </div>
+
+</main>
+
+<footer>
+  Clinical Transformer Lab &mdash; architecture walkthrough. Verified on PyTorch <code>2.14.0+cpu</code>.<br>
+  <a href="index.html">&larr; back to the study</a>
+</footer>
+
+<script>
+function initTabs(){
+  document.querySelectorAll('.tabs').forEach(tabs=>{
+    tabs.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        tabs.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        tabs.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+        btn.classList.add('active');
+        const el=tabs.querySelector('#'+btn.dataset.tab);
+        if(el) el.classList.add('active');
+      });
+    });
+  });
+}
+document.addEventListener('DOMContentLoaded', initTabs);
+</script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/languages/python.min.js"></script>
+<style>
+pre{position:relative}
+.copy-btn{position:absolute;top:6px;right:6px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:6px;padding:0.25rem 0.5rem;font-size:0.7rem;cursor:pointer;opacity:0;transition:opacity 0.2s}
+pre:hover .copy-btn{opacity:1}
+.copy-btn.copied{background:#16a34a}
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', ()=>{
+  if(window.hljs){ hljs.highlightAll(); }
+  document.querySelectorAll('pre').forEach(pre=>{
+    const btn=document.createElement('button');
+    btn.textContent='Copy';
+    btn.className='copy-btn';
+    btn.addEventListener('click',()=>{
+      const code=pre.querySelector('code');
+      const text=code?code.textContent:pre.textContent;
+      navigator.clipboard.writeText(text).then(()=>{
+        btn.textContent='Copied!'; btn.classList.add('copied');
+        setTimeout(()=>{btn.textContent='Copy'; btn.classList.remove('copied')},1500);
+      });
+    });
+    pre.style.position='relative';
+    pre.appendChild(btn);
+  });
+});
+</script>
+
+</body>
+</html>
