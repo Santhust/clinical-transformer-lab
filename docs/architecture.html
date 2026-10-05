@@ -179,7 +179,7 @@ table.plain code{font-size:.82em}
   <!-- 4 PIPELINE -->
   <div class="card" id="pipeline">
     <h2>4. The pipeline, stage by stage</h2>
-    <p>The entire model is <code>src/02_transformer_ehr.py:27-45</code>. Measured shapes for a batch of 4 patients with 8 visit slots:</p>
+    <p>The entire model is <code>src/02_transformer_ehr.py:52-70</code>. Measured shapes for a batch of 4 patients with 8 visit slots:</p>
     <svg class="diagram" viewBox="0 0 940 308" role="img" aria-label="Six stage flow from raw visits to a single risk logit, each labelled with its tensor shape and source line">
       <defs>
         <marker id="ar2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto">
@@ -196,31 +196,31 @@ table.plain code{font-size:.82em}
         <rect x="160" y="50" width="132" height="86" rx="10" fill="#eef2ff" stroke="#6366f1"/>
         <text x="226" y="72" text-anchor="middle" fill="#1e3a8a" font-weight="700">Linear 6&#8594;32</text>
         <text x="226" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
-        <text x="226" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 30</text>
+        <text x="226" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 55</text>
         <text x="226" y="129" text-anchor="middle" fill="#64748b" font-size="10">the embedding</text>
 
         <rect x="312" y="50" width="132" height="86" rx="10" fill="#eef2ff" stroke="#6366f1"/>
         <text x="378" y="72" text-anchor="middle" fill="#1e3a8a" font-weight="700">+ pos_emb</text>
         <text x="378" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
-        <text x="378" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 38</text>
+        <text x="378" y="116" text-anchor="middle" fill="#3730a3" font-size="10">line 63</text>
         <text x="378" y="129" text-anchor="middle" fill="#64748b" font-size="10">learned, 8 slots</text>
 
         <rect x="464" y="50" width="132" height="86" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
         <text x="530" y="72" text-anchor="middle" fill="#166534" font-weight="700">2 blocks</text>
         <text x="530" y="94" text-anchor="middle" fill="#475569">(B, 8, 32)</text>
-        <text x="530" y="116" text-anchor="middle" fill="#15803d" font-size="10">line 41</text>
+        <text x="530" y="116" text-anchor="middle" fill="#15803d" font-size="10">line 66</text>
         <text x="530" y="129" text-anchor="middle" fill="#64748b" font-size="10">4 heads each</text>
 
         <rect x="616" y="50" width="132" height="86" rx="10" fill="#fef3c7" stroke="#f59e0b"/>
         <text x="682" y="72" text-anchor="middle" fill="#78350f" font-weight="700">masked mean</text>
         <text x="682" y="94" text-anchor="middle" fill="#475569">(B, 32)</text>
-        <text x="682" y="116" text-anchor="middle" fill="#92400e" font-size="10">lines 43&#8211;44</text>
+        <text x="682" y="116" text-anchor="middle" fill="#92400e" font-size="10">lines 68&#8211;69</text>
         <text x="682" y="129" text-anchor="middle" fill="#64748b" font-size="10">T collapses</text>
 
         <rect x="768" y="50" width="132" height="86" rx="10" fill="#fee2e2" stroke="#dc2626"/>
         <text x="834" y="72" text-anchor="middle" fill="#7f1d1d" font-weight="700">Linear 32&#8594;1</text>
         <text x="834" y="94" text-anchor="middle" fill="#475569">(B,)</text>
-        <text x="834" y="116" text-anchor="middle" fill="#991b1b" font-size="10">line 45</text>
+        <text x="834" y="116" text-anchor="middle" fill="#991b1b" font-size="10">line 70</text>
         <text x="834" y="129" text-anchor="middle" fill="#64748b" font-size="10">risk logit</text>
       </g>
       <g stroke="#64748b" stroke-width="1.6" marker-end="url(#ar2)">
@@ -251,21 +251,21 @@ table.plain code{font-size:.82em}
 <pre><code>class EHRTransformer(torch.nn.Module):
     def __init__(self, d_in=6, d_model=32, nhead=4):
         super().__init__()
-        self.input_proj = torch.nn.Linear(d_in, d_model)          # 30
-        self.pos_emb = torch.nn.Parameter(torch.randn(1, 8, d_model)*0.1)   # 32
+        self.input_proj = torch.nn.Linear(d_in, d_model)          # 55
+        self.pos_emb = torch.nn.Parameter(torch.randn(1, 8, d_model)*0.1)   # 57
         enc_layer = torch.nn.TransformerEncoderLayer(
-            d_model=d_model, nhead=nhead, dim_feedforward=64, batch_first=True)   # 33
+            d_model=d_model, nhead=nhead, dim_feedforward=64, batch_first=True)   # 58
         self.encoder = torch.nn.TransformerEncoder(
-            enc_layer, num_layers=2, enable_nested_tensor=False)  # 34
-        self.classifier = torch.nn.Linear(d_model, 1)             # 35
+            enc_layer, num_layers=2, enable_nested_tensor=False)  # 59
+        self.classifier = torch.nn.Linear(d_model, 1)             # 60
 
     def forward(self, x, mask):
-        h = self.input_proj(x) + self.pos_emb[:, :x.size(1), :]   # 38
-        pad_mask = (mask == 0)                                    # 40  True = ignore
-        h = self.encoder(h, src_key_padding_mask=pad_mask)        # 41
-        mask_e = mask.unsqueeze(-1)                               # 43
-        pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)  # 44
-        return self.classifier(pooled).squeeze(-1)                # 45</code></pre>
+        h = self.input_proj(x) + self.pos_emb[:, :x.size(1), :]   # 63
+        pad_mask = (mask == 0)                                    # 65  True = ignore
+        h = self.encoder(h, src_key_padding_mask=pad_mask)        # 66
+        mask_e = mask.unsqueeze(-1)                               # 68
+        pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)  # 69
+        return self.classifier(pooled).squeeze(-1)                # 70</code></pre>
       </div>
       <div class="tab-content" id="pipe-shapes">
 <pre><code>input x            (B, 8, 6)    B patients, 8 visit slots, 6 features
@@ -343,7 +343,7 @@ dim_feedforward = 64  (2x d_model)</code></pre>
     <h2>6. Masks &mdash; and the subtlety that matters</h2>
     <table class="plain">
       <tr><th>Kind</th><th>What it hides</th><th>Present?</th><th>Where</th></tr>
-      <tr><td>Padding mask</td><td>Filler visit slots, so they cannot be attended to</td><td class="yes">yes</td><td><code>src_key_padding_mask</code>, line 41</td></tr>
+      <tr><td>Padding mask</td><td>Filler visit slots, so they cannot be attended to</td><td class="yes">yes</td><td><code>src_key_padding_mask</code>, line 66</td></tr>
       <tr><td>Causal mask</td><td>Later positions, for left-to-right generation</td><td class="no">no</td><td>would be <code>is_causal=True</code></td></tr>
       <tr><td>Missing-feature mask</td><td>An absent <em>measurement</em> inside a real visit</td><td class="no">no</td><td>imputed at <code>generate_synthetic_ehr.py:41</code></td></tr>
     </table>
@@ -354,9 +354,23 @@ dim_feedforward = 64  (2x d_model)</code></pre>
       <li>A padded <strong>key</strong> column is <strong>exactly zero</strong>. Nobody attends to a filler slot.</li>
       <li>A padded <strong>query</strong> row is <strong>not zero</strong> &mdash; it still sums to 1.0. A filler slot computes a full, legitimate-looking distribution over the real visits and produces a genuine output vector.</li>
     </ul>
-    <p>So a padded slot manufactures a plausible summary of the patient. Masked mean pooling at lines 43&ndash;44 is what stops those fabrications reaching the prediction. It is load-bearing correctness, not a stylistic choice.</p>
+    <p>So a padded slot manufactures a plausible summary of the patient. Masked mean pooling at lines 68&ndash;69 is what stops those fabrications reaching the prediction. It is load-bearing correctness, not a stylistic choice.</p>
     <img src="plots/transformer_attention.png" alt="Learned attention maps for all layers and heads of one positive test patient. The dashed line marks the padding boundary; columns to the right are pure black while rows below the line still carry weight.">
-    <p class="tight muted" style="font-size:.88rem">Real learned weights, one positive test patient with 6 visits. Produced by <code>src/02_transformer_ehr.py</code>; regenerate with <code>python src/02_transformer_ehr.py</code>. Layer 0 is diffuse and roughly local. Layer 1 is much sharper, and head 2 has collapsed onto a single column &mdash; a head that reads the most recent visit regardless of who is asking. Columns right of the dashed line are exactly zero; rows below it are not.</p>
+    <p class="tight muted" style="font-size:.88rem">Real learned weights, one positive validation patient with 6 visits. Produced by <code>src/02_transformer_ehr.py</code>; regenerate with <code>python src/02_transformer_ehr.py</code>. Drawn from the <em>validation</em> split so the figure cannot be accused of test peeking.</p>
+
+    <h3>What the heads actually specialised in</h3>
+    <p class="tight">Averaged over 1,000 patients, here is the share of each head's attention mass landing on the first and last real visit. Chance level is roughly <code>1/n_visits</code> &asymp; 0.243.</p>
+    <table class="plain">
+      <tr><th>Head (layer 1)</th><th>&rarr; first visit</th><th>&rarr; last visit</th><th>ratio</th><th>Reads</th></tr>
+      <tr><td>0</td><td>0.257</td><td>0.229</td><td>0.89</td><td>neither end, mildly</td></tr>
+      <tr><td>1</td><td>0.270</td><td>0.213</td><td>0.79</td><td>neither end, mildly</td></tr>
+      <tr><td>2</td><td>0.180</td><td><strong>0.477</strong></td><td><strong>2.65</strong></td><td><strong>recency</strong></td></tr>
+      <tr><td>3</td><td><strong>0.395</strong></td><td>0.236</td><td>0.60</td><td><strong>baseline / history</strong></td></tr>
+    </table>
+    <div class="callout good">
+      <strong>This is the label, recovered.</strong> The V1 label is a trend, <code>wbc[-1] - wbc[0]</code> (<code>generate_synthetic_ehr.py:42</code>) &mdash; a difference between the <em>first</em> and the <em>last</em> visit. Nothing told the model about visits being special. It allocated one head to the most recent measurement and a different head to the opening one, which is precisely the two operands that quantity needs. No attention plot is more convincing evidence that the mechanism works than this, and it takes 30 lines of NumPy to produce.
+    </div>
+    <p class="tight muted" style="font-size:.88rem">It is also why the transformer is competitive here at all &mdash; though on this particular label a flattened logistic regression still wins, because it is handed <code>wbc_trend</code> pre-computed. See &sect;7.</p>
     <div class="callout info">
       <strong>Using all observed visits is correct here.</strong> A padding mask removes filler; it never removes information the model is entitled to. It is not the same device as a causal mask, which would remove <em>real</em> later visits. Because the label is computed from the completed record, a causal mask here would be a handicap rather than a safeguard.
     </div>
@@ -377,68 +391,94 @@ pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)   # (B,32)</code></pre
         <pre><code>self.classifier = torch.nn.Linear(d_model, 1)     # 32 -> 1
 
 pos_weight = torch.tensor(
-    [(len(y_tr) - y_tr.sum()) / y_tr.sum()])            # ~8.7
-crit = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)</code></pre>
+    [(len(y_tr) - y_tr.sum()) / y_tr.sum()])            # 9.24
+criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)</code></pre>
         <p class="tight"><code>BCEWithLogitsLoss</code> applies the sigmoid internally, so there is no separate sigmoid step and the arithmetic stays stable for extreme logits.</p>
       </div>
     </div>
     <h3>Why the weighting is not optional</h3>
-    <p class="tight">Prevalence in this dataset is <strong>0.0977</strong> &mdash; roughly 293 positives out of 3,000. Unweighted, the cheapest way to reduce loss is to predict "no" every time. Measured <code>pos_weight</code> is <strong>8.68</strong>.</p>
+    <p class="tight">Prevalence is <strong>0.0978</strong> in the held-out test split &mdash; about 44 positives out of 450. Unweighted, the cheapest way to reduce loss is to predict "no" every time. Measured <code>pos_weight</code> on the training split is <strong>9.24</strong>.</p>
     <div class="kpi">
-      <div><strong>0.0977</strong>prevalence (AUPRC floor)</div>
-      <div><strong>8.68</strong>pos_weight</div>
-      <div><strong>0.878</strong>AUROC (test-selected, see §8)</div>
-      <div><strong>0.449</strong>AUPRC</div>
+      <div><strong>0.0978</strong>test prevalence (AUPRC floor)</div>
+      <div><strong>9.24</strong>pos_weight</div>
+      <div><strong>0.888</strong>test AUROC</div>
+      <div><strong>0.520</strong>test AUPRC</div>
     </div>
     <p class="tight">The AUPRC floor matters when reading results: a model predicting "no" always scores AUPRC 0.098. Any reported figure should be compared against that, not against 0.</p>
+
+    <h3>Like for like</h3>
+    <p class="tight">The script fits the classical baselines on the <em>identical</em> split so this is a fair comparison rather than 5-fold CV against a single holdout. On this task the transformer's own value does not come from the label:</p>
+    <table class="plain">
+      <tr><th>Model (identical 2099/451/450 split)</th><th>Test AUROC</th><th>Test AUPRC</th></tr>
+      <tr><td>Logistic regression</td><td><strong>0.922</strong></td><td><strong>0.571</strong></td></tr>
+      <tr><td>Random forest</td><td>0.893</td><td>0.501</td></tr>
+      <tr><td>This transformer (d=32, 2 layers)</td><td>0.888</td><td>0.520</td></tr>
+    </table>
+    <div class="callout warn">
+      <strong>The V1 label is a trend, and a trend is one hand-written feature.</strong> It is <code>wbc[-1] - wbc[0]</code> (<code>generate_synthetic_ehr.py:42</code>), and both baselines receive <code>wbc_trend</code> as a column. So a flattened linear model already holds the quantity the label is built from, and it wins. This is the same ordering the scaling experiments report, and it is the expected result &mdash; see &sect;1 for the task where the transformer's advantage is real.
+    </div>
   </div>
 
   <!-- 8 LIMITS -->
   <div class="card" id="limits" style="border-left:4px solid #f59e0b">
-    <h2>8. Honest limitations</h2>
-    <p class="tight">Reported so the numbers above are not over-read. None of these are hidden elsewhere in the project; they are collected here.</p>
+    <h2>8. Limitations, and what was fixed</h2>
+    <p class="tight">An earlier revision of this page listed five evaluation problems in <code>src/02_transformer_ehr.py</code>. Four were fixable and are fixed on the <code>feat/architecture-walkthrough</code> branch; one is not fixable at all. Both lists are kept so the change is auditable.</p>
+
+    <h3>Fixed</h3>
     <table class="plain">
-      <tr><th>Issue</th><th>Evidence</th><th>Effect</th></tr>
+      <tr><th>Was</th><th>Now</th><th>Effect</th></tr>
       <tr>
-        <td><strong>The best epoch is selected on the test set</strong></td>
-        <td><code>src/02_transformer_ehr.py:80</code> computes AUROC on <code>X_te</code>; line 82 saves the checkpoint when it improves</td>
-        <td>AUROC 0.878 is optimistically biased. There is no validation split.</td>
+        <td>The best epoch was chosen by AUROC on the <strong>test</strong> set</td>
+        <td>Stratified 70/15/15 split; the epoch is chosen on <strong>validation</strong> AUROC and test metrics are computed once from the selected checkpoint</td>
+        <td>Removes the optimistic bias. It also changed the conclusion &mdash; see below.</td>
       </tr>
       <tr>
-        <td><strong>No torch seed</strong></td>
-        <td>the generator seeds NumPy (<code>generate_synthetic_ehr.py:12</code>) but this script never seeds torch</td>
-        <td>Reruns move the metrics: 0.863 &rarr; 0.878 AUROC, 0.391 &rarr; 0.449 AUPRC on this hardware.</td>
+        <td>Torch was never seeded</td>
+        <td><code>np.random.seed(42)</code> and <code>torch.manual_seed(42)</code> at the top of the script</td>
+        <td>Verified: two consecutive runs produce a <strong>byte-identical</strong> checkpoint and identical metrics.</td>
       </tr>
       <tr>
-        <td><strong>Epoch count disagrees with the README</strong></td>
-        <td><code>README.md:25</code> says 12 epochs; line 62 runs <code>range(35)</code></td>
-        <td>Documentation is wrong, not the code.</td>
+        <td><code>CosineAnnealingLR(T_max=30)</code> but 35 epochs ran, so the learning rate hit <code>0.0</code> at epoch 30 and then climbed back</td>
+        <td><code>T_max=EPOCHS</code>, driven off the same constant</td>
+        <td>The schedule now completes instead of restarting.</td>
       </tr>
       <tr>
-        <td><strong>Cosine schedule is cut short</strong></td>
-        <td><code>T_max=30</code> at line 59, but 35 epochs run</td>
-        <td>Measured: learning rate falls to ~5.5e-6 by epoch 29, hits <code>0.0</code> at epoch 30, then <em>rises</em> to 8.7e-5 by epoch 34. The last 5 epochs are largely wasted.</td>
+        <td>Classical baselines used 5-fold CV while the transformer used one 80/20 split</td>
+        <td>Logistic regression and random forest are now fitted on the <strong>identical</strong> split, reconstructed from the same sequences</td>
+        <td>&sect;7 is now a controlled comparison.</td>
       </tr>
       <tr>
-        <td><strong>Not equal footing</strong></td>
-        <td>classical baselines get stratified 5-fold CV; the transformer gets one 80/20 split</td>
-        <td>The comparison is indicative, not a controlled benchmark.</td>
+        <td><code>README.md:25</code> claimed 12 epochs</td>
+        <td>Corrected to 35, matching the code</td>
+        <td>Documentation now matches behaviour.</td>
       </tr>
+    </table>
+
+    <div class="callout warn">
+      <strong>The fix changed the headline number, downward.</strong> With test-set selection removed, this task's transformer scores AUROC <strong>0.888</strong> against logistic regression's <strong>0.922</strong> on the same split. The earlier 0.878 was a test-selected figure and was not comparable to anything. This is now the honest result, and it is consistent with the scaling experiments in the study: on a simple trend label, a hand-crafted trend feature wins.
+    </div>
+
+    <h3>Not fixable here</h3>
+    <table class="plain">
+      <tr><th>Issue</th><th>Why it stands</th></tr>
       <tr>
         <td><strong>The data is synthetic</strong></td>
-        <td>every cohort is generated in <code>src/</code> with known label rules</td>
-        <td>Results show what the architecture <em>can</em> do on a controlled pattern. They say nothing about clinical validity.</td>
+        <td>Every cohort is generated in <code>src/</code> from a label rule we wrote. These results show what the architecture <em>can</em> do on a controlled pattern. They say nothing about clinical validity, and no amount of protocol repair changes that.</td>
+      </tr>
+      <tr>
+        <td><strong>The other task scripts keep the old protocol</strong></td>
+        <td><code>src/05</code>&ndash;<code>src/10</code> still select on test and still run 12 epochs. They were left alone to keep this branch's diff reviewable, and their reported numbers inherit the bias described above. Fixing them means re-running every cohort.</td>
       </tr>
     </table>
   </div>
 
   <!-- 9 CORRECTIONS -->
   <div class="card" id="fixed">
-    <h2>9. Two things this project previously got wrong</h2>
-    <p class="tight">Both were claims about attention that the code did not support. Both are now fixed on the <code>feat/architecture-walkthrough</code> branch.</p>
+    <h2>9. Three things this project previously got wrong</h2>
+    <p class="tight">Two were claims about attention that the code did not support; the third was an evaluation protocol that flattered the model. All are fixed on the <code>feat/architecture-walkthrough</code> branch. The evaluation issues are itemised in &sect;8.</p>
 
     <h3>The "attention visualization" that visualised no attention</h3>
-    <p class="tight"><code>src/02_transformer_ehr.py:94-102</code> carried the comment <em>"attention visualization: grab last layer attention"</em> and then plotted a patient's WBC series. No attention weights were ever read out.</p>
+    <p class="tight">A block at the foot of <code>src/02_transformer_ehr.py</code> (previously lines 94&ndash;102, before this branch restructured the file) carried the comment <em>"attention visualization: grab last layer attention"</em> and then plotted a patient's WBC series. No attention weights were ever read out.</p>
     <p class="tight">They could not be. On the installed version, <code>nn.TransformerEncoder.forward()</code> does not accept <code>need_weights</code> at all:</p>
 <pre><code>model.encoder(h, need_weights=True)
 # TypeError: TransformerEncoder.forward() got an unexpected keyword argument 'need_weights'</code></pre>

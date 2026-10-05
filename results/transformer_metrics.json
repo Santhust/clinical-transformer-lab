@@ -1,4 +1,26 @@
 {
-  "AUROC": 0.8777530624392995,
-  "AUPRC": 0.44932943012684456
+  "seed": 42,
+  "split": {
+    "train": 2099,
+    "val": 451,
+    "test": 450,
+    "strategy": "stratified 70/15/15",
+    "model_selection": "best epoch by validation AUROC"
+  },
+  "epochs": 35,
+  "selected_epoch": 15,
+  "validation_AUROC": 0.8534733080187625,
+  "test_AUROC": 0.8882669055082849,
+  "test_AUPRC": 0.520098942739483,
+  "test_prevalence": 0.09777777777777778,
+  "classical_same_split": {
+    "LogisticRegression": {
+      "AUROC": 0.9220219435736677,
+      "AUPRC": 0.5709232113209238
+    },
+    "RandomForest": {
+      "AUROC": 0.8931650246305418,
+      "AUPRC": 0.5006197609762677
+    }
+  }
 }

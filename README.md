@@ -22,7 +22,7 @@ Keywords: EHR, sequential prediction, transformer, self-attention, imbalanced ev
 | V2-B Cumulative | 3–12 | mean WBC across visits | Integration over history |
 | V2-C Long-range | 3–12 | diag_first × wbc_last interaction | Memory across 12 steps |
 
-All share evaluation (stratified 5-fold classical, 80/20 transformer, AUROC/AUPRC) and training (AdamW, 12 epochs, batch 64).
+All share evaluation (stratified 5-fold classical, held-out transformer, AUROC/AUPRC) and training (AdamW, 35 epochs, batch 64 in `src/02_transformer_ehr.py`; 12 epochs in the scaling and V2 scripts).
 
 See `docs/index.html` for the full living paper with interactive tables, per-task data previews, and versioned logs.
 
@@ -77,11 +77,13 @@ notes.ipynb          # secondary scratch notebook for quick experiments
 app.py               # Streamlit attention explorer over real trained weights
 ```
 
-All figures are generated from code. No external data required. The one committed binary is `results/best_transformer.pt` (79 KiB, 17,601 parameters), which lets the attention figures be regenerated without a 10-minute retrain and gives `app.py` real weights to show; `python src/02_transformer_ehr.py` recreates it deterministically apart from torch seeding, which the script does not set.
+All figures are generated from code. No external data required. The one committed binary is `results/best_transformer.pt` (79 KiB, 17,601 parameters), which lets the attention figures be regenerated without a retrain and gives `app.py` real weights to show; `python src/02_transformer_ehr.py` recreates it byte-for-byte, because that script seeds both NumPy and torch.
 
 ## Limitations
 
 Synthetic data isolates methodological questions but does not model RA-specific markers (RF, anti-CCP, DAS28). Real-data extension is MIMIC-IV (300k admissions, ICD M05–M06) with attention-based interpretability as next step.
+
+**Evaluation protocol is not uniform across this repository.** `src/02_transformer_ehr.py` was reworked on the `feat/architecture-walkthrough` branch to seed its RNGs, select its epoch on a validation split rather than the test set, complete its cosine schedule, and compare against classical baselines fitted on the identical split. The scaling and V2 scripts (`src/05`–`src/10`) still select on the test set and still run 12 epochs, so their reported numbers inherit that optimistic bias. See [docs/architecture.html](docs/architecture.html) §8 for the item-by-item list.
 
 ## License
 

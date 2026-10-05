@@ -133,11 +133,15 @@ with tab_learned:
         })
         st.dataframe(share, hide_index=True)
 
-    with st.expander("Why the last visit often dominates"):
+    with st.expander("What the heads actually specialised in"):
         st.markdown(
-            "A column that is bright across every row means that visit is being read by all the "
-            "others. Layer-1 heads in this model frequently collapse onto the most recent visit - "
-            "a useful check that the model is using recency, not just the overall shape of the record."
+            "Averaged over 1,000 patients, layer 1 does not spread evenly. Head 2 puts **0.477** of "
+            "its attention mass on the most recent visit and head 3 puts **0.395** on the *first* "
+            "visit, against a chance level near 0.243. The V1 label is a trend, "
+            "`wbc[-1] - wbc[0]` (`src/generate_synthetic_ehr.py:42`), so the model allocated one "
+            "head to each of the two operands that quantity needs.\n\n"
+            "Worth re-checking whenever you retrain: pick a layer and head, then look at which "
+            "*column* is bright across every row."
         )
 
 # -------------------------------------------------------------- schematic ----
