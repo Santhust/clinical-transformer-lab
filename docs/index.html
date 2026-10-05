@@ -53,7 +53,7 @@ nav.toc a{margin-right:0.8rem;font-size:0.85rem;text-decoration:none}
 <main>
 <nav class="toc">
   <strong style="font-size:0.85rem">Contents:</strong>
-  <a href="#abstract">Abstract</a><a href="#motivation">Motivation</a><a href="#tech">Tech Stack</a><a href="#data">Synthetic EHR</a><a href="#design">Study Design</a><a href="#v1">Baseline</a><a href="#scaling">Scaling</a><a href="#v2a">Ordered Pattern</a><a href="#v2b">Cumulative</a><a href="#v2c">Long-Range</a><a href="#synthesis">Synthesis</a><a href="#reproduce">Reproducibility</a>
+  <a href="#abstract">Abstract</a><a href="#motivation">Motivation</a><a href="#tech">Tech Stack</a><a href="#data">Synthetic EHR</a><a href="#design">Study Design</a><a href="#v1">Baseline</a><a href="#scaling">Scaling</a><a href="#v2a">Ordered Pattern</a><a href="#v2b">Cumulative</a><a href="#v2c">Long-Range</a><a href="#synthesis">Synthesis</a><a href="#reproduce">Reproducibility</a><a href="architecture.html" style="font-weight:600">Architecture Walkthrough &rarr;</a>
 </nav>
 
   <!-- HOW TO EXPLORE -->
@@ -161,7 +161,7 @@ std        866.17    15.97     0.50      2.00     0.13      0.08      0.19      
   <!-- STUDY DESIGN -->
   <div class="card" id="design">
     <h2>Study Design — Map of the Enquiry</h2>
-    <p class="tight">One dataset family, four controlled tasks — each tests a distinct temporal capability. All share evaluation (stratified 5-fold classical, 80/20 transformer, AUROC/AUPRC, prevalence ~5–15%) and training (AdamW, 12 epochs, batch 64).</p>
+    <p class="tight">One dataset family, four controlled tasks — each tests a distinct temporal capability. Evaluation is stratified 5-fold CV for the classical baselines and a held-out split for the transformers (AUROC/AUPRC, prevalence ~5–15%). Training is AdamW, batch 64. Epochs differ by script: <strong>35</strong> in <code>src/02_transformer_ehr.py</code>, <strong>12</strong> in the scaling and V2 scripts — see the note on protocol below.</p>
     <div style="overflow:auto">
     <table style="width:100%;font-size:0.85rem;border-collapse:collapse">
       <thead><tr style="background:#f1f5f9"><th style="padding:.5rem;border:1px solid #e2e8f0">Task</th><th style="padding:.5rem;border:1px solid #e2e8f0">Visits</th><th style="padding:.5rem;border:1px solid #e2e8f0">Label rule</th><th style="padding:.5rem;border:1px solid #e2e8f0">What it tests</th><th style="padding:.5rem;border:1px solid #e2e8f0">Hypothesis</th></tr></thead>
@@ -184,7 +184,7 @@ std        866.17    15.97     0.50      2.00     0.13      0.08      0.19      
       <div>
         <h3>Classical baseline</h3>
         <p class="tight">LogReg and Random Forest on flattened features incl. <code>wbc_trend</code>, <code>class_weight=balanced</code>, 5-fold CV.</p>
-        <p class="muted tight">LogReg 0.888 ±0.017 / 0.501 ±0.055 — handcrafted trend is strong.</p>
+        <p class="muted tight">LogReg 0.888 ±0.017 / 0.501 ±0.055 under 5-fold CV — the handcrafted trend is strong.</p>
       </div>
       <div>
         <h3>Transformer (PyTorch)</h3>
@@ -193,7 +193,7 @@ std        866.17    15.97     0.50      2.00     0.13      0.08      0.19      
       </div>
     </div>
     <img src="plots/comparison.png" alt="comparison" style="margin-top:1rem">
-    <p><strong>LogReg 0.888/0.501 vs Transformer 0.863/0.391</strong> — with handcrafted trend near-optimal, transformer is comparable in AUROC but lower in AUPRC at this scale. Advantage should emerge with scale/complexity.</p>
+    <p><strong>On one identical split (n=3000, stratified 70/15/15): logistic regression 0.922/0.571, random forest 0.893/0.501, transformer 0.888/0.520.</strong> With a handcrafted trend feature available, the flattened linear model wins — the label <em>is</em> a trend, <code>wbc[-1] − wbc[0]</code>. The earlier figure quoted here for the transformer (0.863/0.391) came from selecting its epoch on the test set; it was optimistically biased and is not comparable. This ordering matches the scaling results below.</p>
     <details><summary>View code, logs &amp; results</summary><div class="tabs">
       <div class="tab-buttons">
         <button class="tab-btn active" data-tab="v1-gen">Generation script</button>
@@ -334,21 +334,46 @@ for i, v in enumerate(auprcs): ax.text(i+0.2, v+0.02, f&quot;{v:.3f}&quot;, ha=&
 fig.tight_layout(); fig.savefig(&quot;plots/classical_metrics.png&quot;, dpi=180); plt.close()
 print(&quot;Saved plots/classical_metrics.png + results/classical_metrics.json&quot;)
 </code></pre></div>
-      <div id="v1-trans" class="tab-content"><pre><code class="language-python">&quot;&quot;&quot;
+      <div id="v1-trans" class="tab-content"><pre><code class="language-python">"""
 02_transformer_ehr.py — Transformer for EHR sequences (PyTorch)
 EHR sequence prediction with masking and positional encoding
 Run: python src/02_transformer_ehr.py  -&gt; results/transformer_metrics.json + plots
-&quot;&quot;&quot;
-import numpy as np, torch, json, matplotlib.pyplot as plt
+
+Protocol
+--------
+Everything is seeded, so a rerun reproduces these numbers exactly.
+A stratified 70/15/15 train/validation/test split is used. The best epoch is
+selected on *validation* AUROC and test metrics are computed once, at the end,
+from the selected checkpoint — the test set is never used for model selection.
+Classical baselines are fitted on the identical split so the comparison is like
+for like rather than 5-fold CV against a single holdout.
+"""
+import sys
 from pathlib import Path
+
+import numpy as np, torch, json, matplotlib.pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import roc_auc_score, average_precision_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.ensemble import RandomForestClassifier
 
-Path(&quot;results&quot;).mkdir(exist_ok=True)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from attention_utils import extract_attention
 
-data = np.load(&quot;data/sequences.npz&quot;)
-seqs, masks, labels = data[&quot;seqs&quot;], data[&quot;masks&quot;], data[&quot;labels&quot;]
-print(&quot;Sequences&quot;, seqs.shape, &quot;imbalance&quot;, labels.mean())
+SEED = 42
+EPOCHS = 35
+BATCH_SIZE = 64
+LR = 2e-3
+WEIGHT_DECAY = 1e-4
+
+np.random.seed(SEED)
+torch.manual_seed(SEED)
+
+Path("results").mkdir(exist_ok=True)
+
+data = np.load("data/sequences.npz")
+seqs, masks, labels = data["seqs"], data["masks"], data["labels"]
+print("Sequences", seqs.shape, "imbalance", labels.mean())
 
 # PyTorch dataset
 class EHRDataset(torch.utils.data.Dataset):
@@ -380,82 +405,204 @@ class EHRTransformer(torch.nn.Module):
         pooled = (h * mask_e).sum(1) / mask_e.sum(1).clamp(min=1)
         return self.classifier(pooled).squeeze(-1)
 
-# train
-X_tr, X_te, m_tr, m_te, y_tr, y_te = train_test_split(seqs, masks, labels, test_size=0.2, stratify=labels, random_state=42)
-train_ds = EHRDataset(X_tr, m_tr, y_tr)
-test_ds = EHRDataset(X_te, m_te, y_te)
-train_loader = torch.utils.data.DataLoader(train_ds, batch_size=64, shuffle=True)
+# --- splits: stratified train / validation / test ---------------------------
+trval_idx, te_idx = train_test_split(np.arange(len(labels)), test_size=0.15,
+                                     stratify=labels, random_state=SEED)
+tr_idx, va_idx = train_test_split(trval_idx, test_size=0.15 / 0.85,
+                                  stratify=labels[trval_idx], random_state=SEED)
+print(f"split -&gt; train {len(tr_idx)}  val {len(va_idx)}  test {len(te_idx)}")
 
-device = torch.device(&quot;cpu&quot;)
+def take(idx, src):
+    return np.asarray([src[i] for i in idx])
+
+tr_ds = EHRDataset(take(tr_idx, seqs), take(tr_idx, masks), take(tr_idx, labels))
+tr_loader = torch.utils.data.DataLoader(tr_ds, batch_size=BATCH_SIZE, shuffle=True)
+
+device = torch.device("cpu")
 model = EHRTransformer().to(device)
-# handle imbalance via pos_weight
-pos_weight = torch.tensor([(len(y_tr)-y_tr.sum())/y_tr.sum()])
-criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
-optim = torch.optim.AdamW(model.parameters(), lr=2e-3, weight_decay=1e-4)
-sched = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=30)
 
-best_auc = 0
-for epoch in range(35):
+# handle imbalance via pos_weight
+y_tr = torch.tensor(take(tr_idx, labels), dtype=torch.float32)
+pos_weight = torch.tensor([(len(y_tr) - y_tr.sum()) / y_tr.sum()], dtype=torch.float32)
+print(f"pos_weight {float(pos_weight):.3f}")
+criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+optim = torch.optim.AdamW(model.parameters(), lr=LR, weight_decay=WEIGHT_DECAY)
+# T_max matches EPOCHS so the cosine completes instead of restarting
+sched = torch.optim.lr_scheduler.CosineAnnealingLR(optim, T_max=EPOCHS)
+
+def as_tensors(idx):
+    return (torch.tensor(take(idx, seqs), dtype=torch.float32).to(device),
+            torch.tensor(take(idx, masks), dtype=torch.float32).to(device),
+            take(idx, labels))
+
+va_x, va_m, va_y = as_tensors(va_idx)
+
+best_val_auc, best_epoch, best_state = -1.0, -1, None
+for epoch in range(EPOCHS):
     model.train()
-    losses=[]
-    for x,m,y in train_loader:
-        x,m,y = x.to(device), m.to(device), y.to(device)
+    losses = []
+    for x, m, y in tr_loader:
+        x, m, y = x.to(device), m.to(device), y.to(device)
         optim.zero_grad()
-        logits = model(x,m)
+        logits = model(x, m)
         loss = criterion(logits, y)
         loss.backward(); optim.step()
         losses.append(loss.item())
     sched.step()
-    # eval
+    # model selection on VALIDATION, never on test
     model.eval()
     with torch.no_grad():
-        te_x = torch.tensor(X_te, dtype=torch.float32).to(device)
-        te_m = torch.tensor(m_te, dtype=torch.float32).to(device)
-        logits = model(te_x, te_m).cpu().numpy()
-        prob = 1/(1+np.exp(-logits))
-        auc = roc_auc_score(y_te, prob)
-        auprc = average_precision_score(y_te, prob)
-    if auc &gt; best_auc:
-        best_auc = auc
-        best = (auc, auprc, prob.copy())
-        torch.save(model.state_dict(), &quot;results/best_transformer.pt&quot;)
+        val_logits = model(va_x, va_m).cpu().numpy()
+    val_auc = roc_auc_score(va_y, val_logits)
+    if val_auc &gt; best_val_auc:
+        best_val_auc, best_epoch = val_auc, epoch
+        best_state = {k: v.detach().clone() for k, v in model.state_dict().items()}
     if epoch % 5 == 0:
-        print(f&quot;Epoch {epoch}: loss {np.mean(losses):.3f}  AUROC {auc:.3f}  AUPRC {auprc:.3f}&quot;)
+        print(f"Epoch {epoch}: loss {np.mean(losses):.3f}  val AUROC {val_auc:.3f}")
 
-auc, auprc, prob = best
-print(f&quot;Best Transformer — AUROC {auc:.3f}  AUPRC {auprc:.3f}&quot;)
-with open(&quot;results/transformer_metrics.json&quot;,&quot;w&quot;) as f:
-    json.dump({&quot;AUROC&quot;: float(auc), &quot;AUPRC&quot;: float(auprc)}, f, indent=2)
+print(f"selected epoch {best_epoch} on validation AUROC {best_val_auc:.3f}")
+model.load_state_dict(best_state)
+torch.save(best_state, "results/best_transformer.pt")
 
-# attention visualization: grab last layer attention (approx via encoder weights)
-# simple proxy: plot pooled contribution per visit for a positive patient
-fig, ax = plt.subplots(figsize=(8,3))
-idx = np.where(y_te==1)[0][0]
-# visualize sequence length
-seq_len = int(m_te[idx].sum())
-ax.plot(range(seq_len), X_te[idx, :seq_len, 2], marker=&quot;o&quot;, label=&quot;WBC (normalized)&quot;)
-ax.set_xlabel(&quot;Visit (time)&quot;); ax.set_ylabel(&quot;value&quot;); ax.set_title(f&quot;Example positive patient (n_visits={seq_len}) — model looks at trend, not just last value&quot;)
-ax.legend(); fig.tight_layout(); fig.savefig(&quot;plots/transformer_example_patient.png&quot;, dpi=180); plt.close()
-print(&quot;Saved results + plots/transformer_example_patient.png&quot;)
-</code></pre></div>
+# --- test metrics, computed once from the selected checkpoint --------------
+te_x, te_m, te_y = as_tensors(te_idx)
+model.eval()
+with torch.no_grad():
+    logits = model(te_x, te_m).cpu().numpy()
+prob = 1 / (1 + np.exp(-logits))
+auc = roc_auc_score(te_y, prob)
+auprc = average_precision_score(te_y, prob)
+print(f"Held-out test — AUROC {auc:.3f}  AUPRC {auprc:.3f}  (AUPRC floor = {np.mean(te_y):.3f})")
+
+# --- classical baselines on the SAME split, like for like ------------------
+def classical_features(s, m):
+    """Rebuild the flattened feature row the classical models expect."""
+    n_visits = m.sum(1).astype(int)
+    rows = []
+    for seq, nv in zip(s, n_visits):
+        last = seq[nv - 1]
+        rows.append([
+            seq[0, 4], seq[0, 5], nv,
+            last[0], last[1], last[2], last[3],
+            seq[nv - 1, 2] - seq[0, 2], last[0] - seq[0, 0],
+        ])
+    return np.array(rows)
+
+feats = classical_features(seqs, masks)
+tr_f, te_f = feats[tr_idx], feats[te_idx]
+classical = {}
+for name, est in [("LogisticRegression", LogisticRegression(class_weight="balanced", max_iter=500)),
+                  ("RandomForest", RandomForestClassifier(n_estimators=200, class_weight="balanced_subsample", random_state=SEED))]:
+    est.fit(tr_f, take(tr_idx, labels))
+    p = est.predict_proba(te_f)[:, 1]
+    classical[name] = {"AUROC": float(roc_auc_score(te_y, p)),
+                       "AUPRC": float(average_precision_score(te_y, p))}
+    print(f"  {name:20s} AUROC {classical[name]['AUROC']:.3f}  AUPRC {classical[name]['AUPRC']:.3f}")
+
+with open("results/transformer_metrics.json", "w") as f:
+    json.dump({
+        "seed": SEED,
+        "split": {"train": len(tr_idx), "val": len(va_idx), "test": len(te_idx),
+                  "strategy": "stratified 70/15/15", "model_selection": "best epoch by validation AUROC"},
+        "epochs": EPOCHS,
+        "selected_epoch": best_epoch,
+        "validation_AUROC": float(best_val_auc),
+        "test_AUROC": float(auc),
+        "test_AUPRC": float(auprc),
+        "test_prevalence": float(np.mean(te_y)),
+        "classical_same_split": classical,
+    }, f, indent=2)
+
+# --- attention from the selected checkpoint --------------------------------
+# Drawn from the VALIDATION split so the figure cannot be accused of test peeking.
+pos_val = int(np.where(va_y == 1)[0][0])
+attention = extract_attention(model, va_x, va_m)
+n_visits_val = int(va_m[pos_val].sum())
+
+# Patient trajectory (NOT attention) — a sanity check on the inputs.
+fig, ax = plt.subplots(figsize=(8, 3))
+ax.plot(range(n_visits_val), va_x[pos_val, :n_visits_val, 2].cpu().numpy(), marker="o",
+        label="WBC (normalized)")
+ax.set_xlabel("Visit (time)")
+ax.set_ylabel("value")
+ax.set_title(f"Example positive validation patient (n_visits={n_visits_val}) - input WBC trajectory")
+ax.legend()
+fig.tight_layout()
+fig.savefig("plots/transformer_example_patient.png", dpi=180)
+plt.close()
+
+n_layers = len(attention)
+n_heads = attention[0].shape[1]
+fig, axes = plt.subplots(n_layers, n_heads, figsize=(3.0 * n_heads, 3.1 * n_layers), squeeze=False)
+for layer in range(n_layers):
+    w = attention[layer][pos_val].cpu().numpy()   # (nhead, T, T)
+    n = n_visits_val
+    for head in range(n_heads):
+        ax = axes[layer][head]
+        im = ax.imshow(w[head], cmap="viridis", vmin=0, vmax=1)
+        ax.set_xticks(range(w.shape[-1]))
+        ax.set_yticks(range(w.shape[-1]))
+        ax.axhline(n - 0.5, color="white", lw=1.5, ls="--")
+        ax.axvline(n - 0.5, color="white", lw=1.5, ls="--")
+        ax.set_title(f"L{layer} H{head}", fontsize=9)
+        ax.tick_params(labelsize=7)
+        if layer == n_layers - 1:
+            ax.set_xlabel("key (visit attended to)", fontsize=8)
+        if head == 0:
+            ax.set_ylabel("query (visit asking)", fontsize=8)
+        fig.colorbar(im, ax=ax, fraction=0.046)
+fig.suptitle(
+    f"Learned attention, positive validation patient (n_visits={n}) - dashed line marks the "
+    "padding boundary.\nPadded key columns are exactly 0; padded query rows are NOT "
+    "zero, which is why masked pooling is required.",
+    fontsize=9,
+)
+fig.tight_layout()
+fig.savefig("plots/transformer_attention.png", dpi=180)
+plt.close()
+
+print(f"attention weights: {n_layers} layers x {n_heads} heads, shape {tuple(attention[0].shape)}")
+print("Saved results/transformer_metrics.json + results/best_transformer.pt + both plots")</code></pre></div>
       <div id="v1-json" class="tab-content"><pre><code class="language-json">{
-  &quot;LogisticRegression&quot;: {
-    &quot;AUROC&quot;: 0.8883572022898767,
-    &quot;AUPRC&quot;: 0.5006696859639759,
-    &quot;AUROC_std&quot;: 0.01735147318770803,
-    &quot;AUPRC_std&quot;: 0.054909413561133304
+  "LogisticRegression": {
+    "AUROC": 0.8883572022898767,
+    "AUPRC": 0.5006696859639759,
+    "AUROC_std": 0.01735147318770803,
+    "AUPRC_std": 0.054909413561133304
   },
-  &quot;RandomForest&quot;: {
-    &quot;AUROC&quot;: 0.8586321368695774,
-    &quot;AUPRC&quot;: 0.42405734768320247,
-    &quot;AUROC_std&quot;: 0.02039632856439055,
-    &quot;AUPRC_std&quot;: 0.04508506755561605
+  "RandomForest": {
+    "AUROC": 0.8586321368695774,
+    "AUPRC": 0.42405734768320247,
+    "AUROC_std": 0.02039632856439055,
+    "AUPRC_std": 0.04508506755561605
   }
 }
 ---
 {
-  &quot;AUROC&quot;: 0.8629656317553808,
-  &quot;AUPRC&quot;: 0.3908519847458687
+  "seed": 42,
+  "split": {
+    "train": 2099,
+    "val": 451,
+    "test": 450,
+    "strategy": "stratified 70/15/15",
+    "model_selection": "best epoch by validation AUROC"
+  },
+  "epochs": 35,
+  "selected_epoch": 15,
+  "validation_AUROC": 0.8534733080187625,
+  "test_AUROC": 0.8882669055082849,
+  "test_AUPRC": 0.520098942739483,
+  "test_prevalence": 0.09777777777777778,
+  "classical_same_split": {
+    "LogisticRegression": {
+      "AUROC": 0.9220219435736677,
+      "AUPRC": 0.5709232113209238
+    },
+    "RandomForest": {
+      "AUROC": 0.8931650246305418,
+      "AUPRC": 0.5006197609762677
+    }
+  }
 }</code></pre></div></details>
     </div>
   </div>
@@ -477,7 +624,7 @@ print(&quot;Saved results + plots/transformer_example_patient.png&quot;)
       </div>
       <div id="sc-code" class="tab-content active"><pre><code class="language-python">&quot;&quot;&quot;
 Scaling with 3 seeds per n — mean±std for variability
-Small model: d_model=32, 2 layers, 12 epochs
+Small model: d_model=32, 2 layers, 12 epochs (this script's own setting — unlike src/02, which runs 35)
 Saves: results/scaling_small_3seeds.json, plots/scaling_small_3seeds.png
 Log: results/scaling_small_3seeds.log
 &quot;&quot;&quot;
@@ -788,7 +935,7 @@ Task V2 Option A — Ordered sustained rise + code interaction (3-12 visits)
 Label = 1 if exists i where WBC rises twice consecutively (&gt;0.10 normalized each step)
         AND diag[i+1] in {0.25,0.75}
 Tests if attention to ordered sub-sequence + cross-feature binding helps.
-Small (32/2) vs Medium (64/3), n=10k,20k, 12 epochs
+Small (32/2) vs Medium (64/3), n=10k,20k, 12 epochs (this script's own setting — unlike src/02, which runs 35)
 &quot;&quot;&quot;
 import numpy as np, torch, json, matplotlib.pyplot as plt
 from pathlib import Path
@@ -1559,17 +1706,29 @@ Saved plots/taskV2_C.png
 
   <div class="card" id="reproduce">
     <h2>Reproducibility</h2>
-<pre><code class="language-python">python -m venv .venv && source .venv/bin/activate
+<pre><code class="language-python">python -m venv .venv &amp;&amp; source .venv/bin/activate
 pip install -r requirements.txt
 python src/generate_synthetic_ehr.py   # → data/synthetic_ehr.csv + sequences.npz
 python src/01_classical_baseline.py    # → results/classical_metrics.json
-python src/04_scaling_experiment.py    # single-seed scaling
+python src/02_transformer_ehr.py       # → results/best_transformer.pt + attention plots (~9 min CPU)
+python src/03_compare.py               # → plots/comparison.png
 python src/05_scaling_3seeds.py        # 3 seeds, shaded bands
 python src/08_taskV2_A.py              # V2-A
 python src/09_taskV2_B.py              # V2-B
 python src/10_taskV2_C.py              # V2-C (key finding)
-# Interactive: streamlit run app.py  |  Jupyter: notes.ipynb (.venv kernel)</code></pre>
+# Start here: docs/architecture.html explains the model
+# Interactive: streamlit run app.py  |  Jupyter: notebooks/architecture_walkthrough.ipynb</code></pre>
     <p class="muted tight">Every figure is generated from code. Logs and JSON for each run are versioned in <code>results/</code> (e.g., <code>scaling_small_3seeds.log</code>, <code>taskV2_C.json</code>). The interactive EHR table above uses <code>data_preview.json</code>.</p>
+
+    <div style="margin-top:1rem;border:1px solid #fde68a;background:#fffbeb;border-radius:12px;padding:1rem 1.1rem">
+      <h3 style="margin-top:0;color:#92400e">Protocol caveat — read before comparing numbers on this page</h3>
+      <p class="tight" style="color:#78350f">Two evaluation protocols are in play, and they are <strong>not</strong> interchangeable.</p>
+      <ul class="tight" style="color:#78350f">
+        <li><strong><code>src/02_transformer_ehr.py</code> (the V1 card above)</strong> was reworked to seed both NumPy and torch, select its epoch on a <em>validation</em> split instead of the test set, complete its cosine schedule, and compare against classical baselines fitted on the <em>identical</em> split. Its reported figures are trustworthy and it reproduces byte-for-byte across runs. See <a href="architecture.html">architecture.html</a> &sect;8.</li>
+        <li><strong><code>src/05</code>&ndash;<code>src/10</code> (the scaling and V2 cards below)</strong> still select the best epoch by AUROC on the <strong>test set</strong> and still run 12 epochs. Every transformer figure in those cards therefore carries an <strong>optimistic bias</strong> and should be read as an upper bound, not an estimate.</li>
+      </ul>
+      <p class="tight" style="color:#78350f">The V2-C gap (0.96 vs 0.71) is far too large to be an artefact of test-set selection — the classical baselines there cannot see <code>diag_first</code> at all, which is an information limit rather than an optimisation one — so that conclusion stands. The finer orderings, especially where the transformer <em>loses</em>, should not be trusted at the decimal place until those scripts are reworked the same way.</p>
+    </div>
   </div>
 
 </main>
