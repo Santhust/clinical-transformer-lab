@@ -36,6 +36,8 @@ See `docs/index.html` for the full living paper with interactive tables, per-tas
 
 ## How to explore
 
+**New here?** Start with the **[architecture walkthrough](docs/architecture.html)** — it explains the model in `src/02_transformer_ehr.py` from the data outwards, with every tensor shape and framework default measured on the installed PyTorch. For a hands-on version, `notebooks/architecture_walkthrough.ipynb` prints each claim step by step.
+
 **On GitHub Pages (static):** searchable 100-row previews, static plots, scrollable code/logs in each card — no install.
 
 **Locally after `git clone`:**
@@ -44,11 +46,13 @@ python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 python src/generate_synthetic_ehr.py          # → data/synthetic_ehr.csv + sequences.npz
 python src/01_classical_baseline.py           # → results/classical_metrics.json
+python src/02_transformer_ehr.py              # → results/best_transformer.pt + attention plots (~10 min CPU)
 python src/05_scaling_3seeds.py               # 3 seeds, shaded bands
 python src/08_taskV2_A.py                     # V2-A
 python src/09_taskV2_B.py                     # V2-B
 python src/10_taskV2_C.py                     # V2-C (key finding)
-streamlit run app.py                          # attention playground
+streamlit run app.py                          # interactive attention over real trained weights
+jupyter lab notebooks/architecture_walkthrough.ipynb   # step-by-step walkthrough
 jupyter lab notes.ipynb                       # secondary scratch notebook
 ```
 
@@ -63,15 +67,17 @@ src/                 # generation + baselines + transformer + scaling + V2 tasks
   08_taskV2_A.py
   09_taskV2_B.py
   10_taskV2_C.py
+  attention_utils.py     # real attention extraction from TransformerEncoder stacks
 data/                # synthetic_ehr.csv + sequences.npz (generated)
-results/             # JSON + logs per run (versioned)
+results/             # JSON + logs per run (versioned), best_transformer.pt checkpoint
 plots/               # all figures (generated)
-docs/                # GitHub Pages site (index.html + previews + plots)
+docs/                # GitHub Pages site (index.html study + architecture.html walkthrough)
+notebooks/           # architecture_walkthrough.ipynb (12 sections, verified shapes)
 notes.ipynb          # secondary scratch notebook for quick experiments
-app.py               # Streamlit interactive attention demo
+app.py               # Streamlit attention explorer over real trained weights
 ```
 
-All figures are generated from code. No external data required.
+All figures are generated from code. No external data required. The one committed binary is `results/best_transformer.pt` (79 KiB, 17,601 parameters), which lets the attention figures be regenerated without a 10-minute retrain and gives `app.py` real weights to show; `python src/02_transformer_ehr.py` recreates it deterministically apart from torch seeding, which the script does not set.
 
 ## Limitations
 
