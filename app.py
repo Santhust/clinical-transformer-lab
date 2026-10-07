@@ -121,7 +121,7 @@ with tab_learned:
             f"- Columns {real_visits} and beyond are **exactly 0** - a padded slot can never be attended to.\n"
             f"- Rows {real_visits} and beyond are **not zero**: a padded slot still computes a full "
             f"distribution over the {real_visits} real visits. That fabricated output is exactly what the "
-            f"masked mean pooling at `src/02_transformer_ehr.py:43-44` discards.\n"
+            f"masked mean pooling at `src/02_transformer_ehr.py:68-69` discards.\n"
             f"- Row *i*, column *j* answers: *how much does visit i use visit j when building "
             f"its own summary?*"
         )

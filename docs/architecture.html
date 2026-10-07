@@ -422,7 +422,7 @@ criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)</code></pre>
   <!-- 8 LIMITS -->
   <div class="card" id="limits" style="border-left:4px solid #f59e0b">
     <h2>8. Limitations, and what was fixed</h2>
-    <p class="tight">An earlier revision of this page listed five evaluation problems in <code>src/02_transformer_ehr.py</code>. Four were fixable and are fixed on the <code>feat/architecture-walkthrough</code> branch; one is not fixable at all. Both lists are kept so the change is auditable.</p>
+    <p class="tight">An earlier revision of this page listed five evaluation problems in <code>src/02_transformer_ehr.py</code>. Four were fixable and are fixed; one is not fixable at all. Both lists are kept so the change is auditable.</p>
 
     <h3>Fixed</h3>
     <table class="plain">
@@ -475,7 +475,7 @@ criterion = torch.nn.BCEWithLogitsLoss(pos_weight=pos_weight)</code></pre>
   <!-- 9 CORRECTIONS -->
   <div class="card" id="fixed">
     <h2>9. Three things this project previously got wrong</h2>
-    <p class="tight">Two were claims about attention that the code did not support; the third was an evaluation protocol that flattered the model. All are fixed on the <code>feat/architecture-walkthrough</code> branch. The evaluation issues are itemised in &sect;8.</p>
+    <p class="tight">Two were claims about attention that the code did not support; the third was an evaluation protocol that flattered the model. All are fixed. The evaluation issues are itemised in &sect;8.</p>
 
     <h3>The "attention visualization" that visualised no attention</h3>
     <p class="tight">A block at the foot of <code>src/02_transformer_ehr.py</code> (previously lines 94&ndash;102, before this branch restructured the file) carried the comment <em>"attention visualization: grab last layer attention"</em> and then plotted a patient's WBC series. No attention weights were ever read out.</p>

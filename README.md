@@ -83,7 +83,7 @@ All figures are generated from code. No external data required. The one committe
 
 Synthetic data isolates methodological questions but does not model RA-specific markers (RF, anti-CCP, DAS28). Real-data extension is MIMIC-IV (300k admissions, ICD M05–M06) with attention-based interpretability as next step.
 
-**Evaluation protocol is not uniform across this repository.** `src/02_transformer_ehr.py` was reworked on the `feat/architecture-walkthrough` branch to seed its RNGs, select its epoch on a validation split rather than the test set, complete its cosine schedule, and compare against classical baselines fitted on the identical split. The scaling and V2 scripts (`src/05`–`src/10`) still select on the test set and still run 12 epochs, so their reported numbers inherit that optimistic bias. See [docs/architecture.html](docs/architecture.html) §8 for the item-by-item list.
+**Evaluation protocol is not uniform across this repository.** `src/02_transformer_ehr.py` was reworked to seed its RNGs, select its epoch on a validation split rather than the test set, complete its cosine schedule, and compare against classical baselines fitted on the identical split. The scaling and V2 scripts (`src/05`–`src/10`) still select on the test set and still run 12 epochs, so their reported numbers inherit that optimistic bias. See [docs/architecture.html](docs/architecture.html) §8 for the item-by-item list.
 
 ## License
 
